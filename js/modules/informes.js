@@ -146,152 +146,197 @@ function generarInforme() {
         return;
     }
     
-    // Generar vista previa del informe
+    // Ordenar pedidos por fecha (más recientes primero)
+    pedidosFiltrados.sort((a, b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion));
+    
+    // Generar vista completa del informe (ya no solo vista previa)
     const previewContent = document.querySelector('.preview-content');
     if (previewContent) {
-        // Mostrar tabla con datos de muestra (primeros 5 pedidos)
-        const muestraPedidos = pedidosFiltrados.slice(0, 5);
-        
         previewContent.innerHTML = `
             <div class="informe-resumen">
                 <p><strong>Total de pedidos:</strong> ${pedidosFiltrados.length}</p>
                 <p><strong>Período:</strong> ${formatDate(fechaDesde)} - ${formatDate(fechaHasta)}</p>
-                <button class="btn btn-primary" onclick="descargarInforme()">
-                    <i class="fas fa-download"></i> Descargar Informe
+                <button class="btn btn-primary" onclick="imprimirInforme()">
+                    <i class="fas fa-print"></i> Imprimir Informe
                 </button>
             </div>
-            <div class="informe-preview-table">
-                <table class="data-table">
+            <div class="informe-table-container">
+                <table class="informe-table">
                     <thead>
                         <tr>
                             <th>Pedido</th>
                             <th>Cliente</th>
+                            <th>Dirección</th>
                             <th>Fecha</th>
                             <th>Estado</th>
+                            <th>Productos</th>
                             <th>Total</th>
+                            <th>Creador</th>
+                            <th>Conductor</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${muestraPedidos.map(pedido => `
-                            <tr>
+                        ${pedidosFiltrados.map(pedido => `
+                            <tr class="${pedido.estado === 'anulado' ? 'anulado' : ''}">
                                 <td>${pedido.numeroPedido}</td>
                                 <td>${pedido.cliente.nombre} ${pedido.cliente.apellido}</td>
+                                <td>${pedido.cliente.direccion}, ${pedido.cliente.ciudad}</td>
                                 <td>${formatDate(pedido.fechaCreacion)}</td>
                                 <td><span class="status-badge status-${pedido.estado}">${getEstadoLabel(pedido.estado)}</span></td>
+                                <td>${pedido.productos.map(p => `${p.cantidad} x ${p.nombre}`).join('<br>')}</td>
                                 <td>${formatCurrency(pedido.total)}</td>
+                                <td>${pedido.creador ? pedido.creador.nombre + ' ' + pedido.creador.apellido : '-'}</td>
+                                <td>${pedido.conductor ? pedido.conductor.nombre + ' ' + pedido.conductor.apellido : 'Sin asignar'}</td>
                             </tr>
                         `).join('')}
                     </tbody>
                 </table>
-                ${pedidosFiltrados.length > 5 ? `<p class="preview-note">Mostrando 5 de ${pedidosFiltrados.length} pedidos. Descarga el informe para ver todos.</p>` : ''}
             </div>
         `;
     }
     
-    // Guardar datos para descargar
-    window.informeData = {
-        pedidos: pedidosFiltrados,
-        fechaDesde,
-        fechaHasta,
-        estados: estadosSeleccionados
-    };
-    
     showToast(`Informe generado con ${pedidosFiltrados.length} pedidos`, 'success');
 }
 
-// Descargar informe
-function descargarInforme() {
-    // Verificar que haya datos para descargar
-    if (!window.informeData || !window.informeData.pedidos.length) {
-        showToast('No hay datos para descargar', 'error');
+// Función para imprimir el informe
+function imprimirInforme() {
+    // Crear una ventana nueva para imprimir
+    const printWindow = window.open('', '_blank');
+    
+    // Obtener datos del informe actual
+    const informeTable = document.querySelector('.informe-table');
+    const informeResumen = document.querySelector('.informe-resumen');
+    
+    if (!informeTable || !informeResumen) {
+        showToast('No hay informe para imprimir', 'error');
+        if (printWindow) printWindow.close();
         return;
     }
     
-    // Obtener datos del informe
-    const { pedidos, fechaDesde, fechaHasta } = window.informeData;
+    // Extraer información de resumen
+    const totalPedidos = informeResumen.querySelector('p:first-child').textContent;
+    const periodo = informeResumen.querySelector('p:nth-child(2)').textContent;
     
-    try {
-        // Convertir datos a formato CSV
-        let csvContent = 'data:text/csv;charset=utf-8,';
-        
-        // Encabezados
-        csvContent += 'Número Pedido,Cliente,Dirección,Ciudad,Departamento,Fecha Creación,Estado,Tipo Pago,Producto,Cantidad,Precio,Subtotal,Total Pedido,Creador,Conductor,Comentarios\n';
-        
-        // Datos
-        pedidos.forEach(pedido => {
-            // Si el pedido no tiene productos, crear una fila sin productos
-            if (pedido.productos.length === 0) {
-                const row = [
-                    pedido.numeroPedido,
-                    `${pedido.cliente.nombre} ${pedido.cliente.apellido}`,
-                    pedido.cliente.direccion,
-                    pedido.cliente.ciudad,
-                    pedido.cliente.departamento,
-                    formatDate(pedido.fechaCreacion),
-                    getEstadoLabel(pedido.estado),
-                    pedido.tipoPago === 'contraentrega' ? 'Pago Contraentrega' : 'Pago Anticipado',
-                    '', // Producto
-                    '', // Cantidad
-                    '', // Precio
-                    '', // Subtotal
-                    formatCurrency(pedido.total),
-                    `${pedido.creador.nombre} ${pedido.creador.apellido}`,
-                    pedido.conductor ? `${pedido.conductor.nombre} ${pedido.conductor.apellido}` : 'Sin asignar',
-                    pedido.comentarios.length
-                ].map(cell => `"${cell}"`).join(',');
-                
-                csvContent += row + '\n';
-            } else {
-                // Si el pedido tiene productos, crear una fila por cada producto
-                pedido.productos.forEach((producto, index) => {
-                    const row = [
-                        pedido.numeroPedido,
-                        `${pedido.cliente.nombre} ${pedido.cliente.apellido}`,
-                        pedido.cliente.direccion,
-                        pedido.cliente.ciudad,
-                        pedido.cliente.departamento,
-                        formatDate(pedido.fechaCreacion),
-                        getEstadoLabel(pedido.estado),
-                        pedido.tipoPago === 'contraentrega' ? 'Pago Contraentrega' : 'Pago Anticipado',
-                        producto.nombre,
-                        producto.cantidad,
-                        formatCurrency(producto.precioUnitario),
-                        formatCurrency(producto.subtotal),
-                        index === 0 ? formatCurrency(pedido.total) : '', // Solo mostrar el total en la primera fila
-                        `${pedido.creador.nombre} ${pedido.creador.apellido}`,
-                        pedido.conductor ? `${pedido.conductor.nombre} ${pedido.conductor.apellido}` : 'Sin asignar',
-                        index === 0 ? pedido.comentarios.length : '' // Solo mostrar comentarios en la primera fila
-                    ].map(cell => `"${cell}"`).join(',');
-                    
-                    csvContent += row + '\n';
-                });
-            }
-        });
-        
-        // Crear un enlace temporal para descargar
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement('a');
-        link.setAttribute('href', encodedUri);
-        link.setAttribute('download', `informe_pedidos_${formatDateFile(fechaDesde)}_${formatDateFile(fechaHasta)}.csv`);
-        document.body.appendChild(link);
-        
-        // Hacer clic en el enlace y luego eliminarlo
-        link.click();
-        document.body.removeChild(link);
-        
-        showToast('Informe descargado correctamente', 'success');
-    } catch (error) {
-        console.error('Error al generar el informe:', error);
-        showToast('Error al generar el informe', 'error');
-    }
+    // Crear HTML para la ventana de impresión
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Informe de Pedidos - Fluxon Logistics</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    margin: 20px;
+                    color: #333;
+                }
+                .report-header {
+                    text-align: center;
+                    margin-bottom: 20px;
+                }
+                .report-title {
+                    font-size: 24px;
+                    font-weight: bold;
+                    margin-bottom: 5px;
+                    color: #013AFB;
+                }
+                .report-subtitle {
+                    font-size: 16px;
+                    margin-bottom: 15px;
+                }
+                .report-info {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 15px;
+                }
+                .report-info p {
+                    margin: 5px 0;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 30px;
+                }
+                th, td {
+                    border: 1px solid #ddd;
+                    padding: 8px;
+                    text-align: left;
+                }
+                th {
+                    background-color: #f2f2f2;
+                    font-weight: bold;
+                }
+                tr:nth-child(even) {
+                    background-color: #f9f9f9;
+                }
+                tr.anulado {
+                    text-decoration: line-through;
+                    color: #999;
+                }
+                .status-badge {
+                    display: inline-block;
+                    padding: 3px 8px;
+                    border-radius: 4px;
+                    font-size: 12px;
+                }
+                .status-buscando-conductor { background-color: #e0f7fa; color: #006064; }
+                .status-conductor-asignado { background-color: #e8f5e9; color: #2e7d32; }
+                .status-en-proceso { background-color: #fff8e1; color: #ff6f00; }
+                .status-entregado-pendiente { background-color: #e8eaf6; color: #303f9f; }
+                .status-finalizado { background-color: #e8f5e9; color: #2e7d32; }
+                .status-devuelto { background-color: #ffebee; color: #c62828; }
+                .status-anulado { background-color: #f5f5f5; color: #757575; }
+                .print-footer {
+                    text-align: center;
+                    font-size: 12px;
+                    margin-top: 30px;
+                    color: #666;
+                }
+                @media print {
+                    .no-print {
+                        display: none;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="report-header">
+                <div class="report-title">Fluxon Logistics</div>
+                <div class="report-subtitle">Informe de Pedidos</div>
+            </div>
+            
+            <div class="report-info">
+                <div>
+                    <p><strong>Usuario:</strong> ${app.currentUser.nombre} ${app.currentUser.apellido}</p>
+                    <p><strong>Rol:</strong> ${getRoleName(app.currentUser.rol)}</p>
+                </div>
+                <div>
+                    <p>${totalPedidos}</p>
+                    <p>${periodo}</p>
+                    <p><strong>Fecha de generación:</strong> ${formatDateTime(new Date())}</p>
+                </div>
+            </div>
+            
+            ${informeTable.outerHTML}
+            
+            <div class="print-footer">
+                <p>© ${new Date().getFullYear()} Fluxon Logistics - Informe generado el ${formatDateTime(new Date())}</p>
+            </div>
+            
+            <div class="no-print" style="text-align: center; margin-top: 20px;">
+                <button onclick="window.print();" style="padding: 10px 20px; background-color: #013AFB; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    <i class="fas fa-print"></i> Imprimir Informe
+                </button>
+                <button onclick="window.close();" style="padding: 10px 20px; background-color: #f5f5f5; color: #333; border: 1px solid #ddd; border-radius: 4px; margin-left: 10px; cursor: pointer;">
+                    <i class="fas fa-times"></i> Cerrar
+                </button>
+            </div>
+            <div class="print-footer no-print" style="text-align: center; margin-top: 10px; font-size: 12px; color: #999;">
+                * La impresión puede variar según la configuración de su navegador. Para mejores resultados, utilice Chrome o Edge.
+            </div>
+        </body>
+        </html>
+    `);
+    
+    printWindow.document.close();
 }
 
-// Formatear fecha para nombre de archivo
-function formatDateFile(dateString) {
-    const date = new Date(dateString);
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
-    
-    return `${day}${month}${year}`;
-}

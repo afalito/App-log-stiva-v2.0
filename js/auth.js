@@ -34,29 +34,42 @@ function loginUser() {
     
     if (hasErrors) return;
     
-    // Buscar usuario en la "base de datos"
-    const user = app.usuarios.find(u => 
-        u.username === username && u.password === password && u.activo
-    );
-    
-    if (user) {
-        // Guardar usuario en la aplicación
-        app.currentUser = {
-            id: user.id,
-            nombre: user.nombre,
-            apellido: user.apellido,
-            username: user.username,
-            rol: user.rol
-        };
-        
-        // Guardar en localStorage
-        localStorage.setItem('currentUser', JSON.stringify(app.currentUser));
-        
-        // Continuar con el inicio de sesión
-        loginSuccess();
-    } else {
-        document.getElementById('password-error').textContent = 'Usuario o contraseña incorrectos';
+    // Mostrar cargador
+    const appLoader = document.getElementById('app-loader');
+    if (appLoader) {
+        appLoader.style.display = 'flex';
     }
+    
+    // Simulamos una breve demora para dar sensación de procesamiento
+    setTimeout(() => {
+        // Buscar usuario en la "base de datos"
+        const user = app.usuarios.find(u => 
+            u.username === username && u.password === password && u.activo
+        );
+        
+        if (user) {
+            // Guardar usuario en la aplicación
+            app.currentUser = {
+                id: user.id,
+                nombre: user.nombre,
+                apellido: user.apellido,
+                username: user.username,
+                rol: user.rol
+            };
+            
+            // Guardar en localStorage
+            localStorage.setItem('currentUser', JSON.stringify(app.currentUser));
+            
+            // Continuar con el inicio de sesión
+            loginSuccess();
+        } else {
+            // Ocultar cargador
+            if (appLoader) {
+                appLoader.style.display = 'none';
+            }
+            document.getElementById('password-error').textContent = 'Usuario o contraseña incorrectos';
+        }
+    }, 500); // Medio segundo de demora para mejorar la experiencia de usuario
 }
 
 // Función ejecutada tras un inicio de sesión exitoso
@@ -88,6 +101,12 @@ function loginSuccess() {
     
     // Actualizar contador de notificaciones
     actualizarContadorNotificaciones();
+    
+    // Ocultar el cargador
+    const appLoader = document.getElementById('app-loader');
+    if (appLoader) {
+        appLoader.style.display = 'none';
+    }
 }
 
 // Configurar permisos según el rol
@@ -105,23 +124,38 @@ function setupRolePermissions() {
 
 // Función para cerrar sesión
 function logout() {
-    // Eliminar usuario del localStorage
-    localStorage.removeItem('currentUser');
+    // Mostrar cargador
+    const appLoader = document.getElementById('app-loader');
+    if (appLoader) {
+        appLoader.style.display = 'flex';
+    }
     
-    // Limpiar usuario actual
-    app.currentUser = null;
-    
-    // Ocultar la aplicación
-    document.getElementById('app-container').style.display = 'none';
-    
-    // Mostrar pantalla de login
-    document.getElementById('login-container').style.display = 'flex';
-    
-    // Limpiar campos de login
-    document.getElementById('username').value = '';
-    document.getElementById('password').value = '';
-    document.getElementById('username-error').textContent = '';
-    document.getElementById('password-error').textContent = '';
+    setTimeout(() => {
+        // Eliminar usuario del localStorage
+        localStorage.removeItem('currentUser');
+        
+        // Limpiar usuario actual
+        app.currentUser = null;
+        
+        // Ocultar la aplicación
+        document.getElementById('app-container').style.display = 'none';
+        
+        // Mostrar pantalla de login
+        document.getElementById('login-container').style.display = 'flex';
+        
+        // Limpiar campos de login
+        document.getElementById('username').value = '';
+        document.getElementById('password').value = '';
+        document.getElementById('username-error').textContent = '';
+        document.getElementById('password-error').textContent = '';
+        
+        // Ocultar cargador
+        if (appLoader) {
+            appLoader.style.display = 'none';
+        }
+        
+        console.log('Sesión cerrada correctamente');
+    }, 500); // Pequeña demora para mostrar el cargador
 }
 
 // Obtener nombre legible del rol

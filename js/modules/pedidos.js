@@ -174,6 +174,19 @@ function openPedidoModal(pedidoId = null) {
         pedidoForm.reset();
     }
     
+    // Verificar que haya productos disponibles
+    if (app.productos.length === 0) {
+        showToast('No hay productos disponibles. Por favor, añade productos primero.', 'warning');
+        
+        // Si el usuario es maestro, sugerir ir a la sección de productos
+        if (app.currentUser && app.currentUser.rol === 'maestro') {
+            setTimeout(() => {
+                changeModule('productos');
+            }, 2000);
+        }
+        return;
+    }
+    
     // Limpiar lista de productos
     const pedidoProductosList = document.getElementById('pedido-productos-list');
     if (pedidoProductosList) {
@@ -679,6 +692,9 @@ function setupPedidoActions(pedido) {
         return;
     }
     
+    // Crear contenedor flex para los botones
+    actionsContainer.className = 'pedido-actions';
+    
     // Acción de cambiar estado (según el rol y estado actual)
     if (app.currentUser.rol === 'conductor') {
         // El conductor puede cambiar a ciertos estados según el estado actual
@@ -725,15 +741,12 @@ function setupPedidoActions(pedido) {
                 <button class="btn btn-small" onclick="asignarConductor(${pedido.id})">
                     <i class="fas fa-user"></i> Asignar Conductor
                 </button>
+                
+                <button class="btn btn-small btn-danger" onclick="anularPedido(${pedido.id})">
+                    <i class="fas fa-ban"></i> Anular Pedido
+                </button>
             `;
         }
-        
-        // El maestro siempre puede anular un pedido
-        actionsContainer.innerHTML += `
-            <button class="btn btn-small btn-danger" onclick="anularPedido(${pedido.id})">
-                <i class="fas fa-ban"></i> Anular Pedido
-            </button>
-        `;
     }
 }
 
@@ -812,10 +825,14 @@ function addComment(pedidoId, texto) {
     commentsContainer.scrollTop = commentsContainer.scrollHeight;
     
     // Verificar menciones y crear notificaciones
-    crearNotificacionesMenciones(texto, pedidoId, app.currentUser);
+    const mencionados = crearNotificacionesMenciones(texto, pedidoId, app.currentUser);
     
-    // Mostrar notificación de éxito
-    showToast('Comentario añadido', 'success');
+    // Mostrar confirmación de menciones
+    if (mencionados && mencionados.length > 0) {
+        showToast(`Se ha notificado a ${mencionados.length} usuario(s) mencionado(s)`, 'success');
+    } else {
+        showToast('Comentario añadido', 'success');
+    }
 }
 
 // Asignar conductor a un pedido
@@ -890,6 +907,9 @@ function asignarConductor(pedidoId) {
             
             pedido.comentarios.push(comentario);
             
+            // Crear notificación para el conductor
+            crearNotificacionAsignacion(pedido, conductor);
+            
             // Cerrar modal de confirmación
             closeModal('confirmation-modal');
             
@@ -898,11 +918,44 @@ function asignarConductor(pedidoId) {
             
             // Mostrar notificación de éxito
             showToast(`Conductor asignado al pedido ${pedido.numeroPedido}`, 'success');
+            
+            // Actualizar la vista de pedidos si estamos en esa pantalla
+            if (app.currentModule === 'pedidos') {
+                updatePedidosTable();
+            }
+            
+            // Actualizar el dashboard si estamos ahí
+            if (app.currentModule === 'dashboard') {
+                updateDashboard();
+            }
         }
     });
     
     // Abrir modal de confirmación
     openModal('confirmation-modal');
+}
+
+// Función para crear notificación de asignación de pedido al conductor
+function crearNotificacionAsignacion(pedido, conductor) {
+    // Crear notificación para el conductor
+    const notificacion = {
+        id: Date.now() + Math.floor(Math.random() * 1000), // ID único
+        usuarioId: conductor.id,
+        texto: `Se te ha asignado un nuevo pedido: ${pedido.numeroPedido}`,
+        referencia: `Pedido para ${pedido.cliente.nombre} ${pedido.cliente.apellido}`,
+        referenciaId: pedido.id,
+        tipo: 'pedido-asignacion',
+        leida: false,
+        fecha: new Date().toISOString()
+    };
+    
+    // Añadir la notificación a la lista global
+    app.notificaciones.push(notificacion);
+    
+    // Actualizar contador de notificaciones
+    actualizarContadorNotificaciones();
+    
+    console.log('Notificación creada para el conductor:', notificacion);
 }
 
 // Cambiar estado de un pedido
@@ -967,18 +1020,114 @@ function cambiarEstadoPedido(pedidoId, nuevoEstado) {
         
         pedido.comentarios.push(comentario);
         
+        // Generar notificaciones relevantes según el cambio de estado
+        generarNotificacionesCambioEstado(pedido, estadoAnterior, nuevoEstado);
+        
         // Cerrar modal de confirmación
         closeModal('confirmation-modal');
         
         // Actualizar vista de detalle
         openPedidoDetail(pedidoId);
         
+        // Actualizar tabla si estamos en la vista de pedidos
+        if (app.currentModule === 'pedidos') {
+            updatePedidosTable();
+        }
+        
+        // Actualizar dashboard si estamos en la pantalla principal
+        if (app.currentModule === 'dashboard') {
+            updateDashboard();
+        }
+        
         // Mostrar notificación de éxito
-        showToast(`Estado del pedido ${pedido.numeroPedido} actualizado`, 'success');
+        showToast(`Estado del pedido ${pedido.numeroPedido} actualizado a "${getEstadoLabel(nuevoEstado)}"`, 'success');
     });
     
     // Abrir modal de confirmación
     openModal('confirmation-modal');
+}
+
+// Generar notificaciones según el cambio de estado
+function generarNotificacionesCambioEstado(pedido, estadoAnterior, nuevoEstado) {
+    // Notificar a diferentes roles según el cambio de estado
+    
+    // Si se entregó, notificar a tesorería
+    if (nuevoEstado === 'entregado-pendiente') {
+        // Buscar usuarios de tesorería
+        const usuariosTesoreria = app.usuarios.filter(u => u.rol === 'tesoreria' && u.activo);
+        
+        // Notificar a cada usuario de tesorería
+        usuariosTesoreria.forEach(usuario => {
+            const notificacion = {
+                id: Date.now() + Math.floor(Math.random() * 1000), // ID único
+                usuarioId: usuario.id,
+                texto: `Pedido ${pedido.numeroPedido} entregado, pendiente de pago`,
+                referencia: `Cliente: ${pedido.cliente.nombre} ${pedido.cliente.apellido}`,
+                referenciaId: pedido.id,
+                tipo: 'pedido-pendiente-pago',
+                leida: false,
+                fecha: new Date().toISOString()
+            };
+            
+            app.notificaciones.push(notificacion);
+        });
+    }
+    
+    // Si se finalizó, notificar al vendedor original
+    if (nuevoEstado === 'finalizado' && pedido.creador) {
+        const notificacion = {
+            id: Date.now() + Math.floor(Math.random() * 1000),
+            usuarioId: pedido.creador.id,
+            texto: `Pedido ${pedido.numeroPedido} finalizado exitosamente`,
+            referencia: `Cliente: ${pedido.cliente.nombre} ${pedido.cliente.apellido}`,
+            referenciaId: pedido.id,
+            tipo: 'pedido-finalizado',
+            leida: false,
+            fecha: new Date().toISOString()
+        };
+        
+        app.notificaciones.push(notificacion);
+    }
+    
+    // Si se devolvió, notificar al vendedor y a bodega
+    if (nuevoEstado === 'devuelto') {
+        // Notificar al vendedor
+        if (pedido.creador) {
+            const notificacionVendedor = {
+                id: Date.now() + Math.floor(Math.random() * 1000),
+                usuarioId: pedido.creador.id,
+                texto: `Pedido ${pedido.numeroPedido} fue devuelto`,
+                referencia: `Cliente: ${pedido.cliente.nombre} ${pedido.cliente.apellido}`,
+                referenciaId: pedido.id,
+                tipo: 'pedido-devuelto',
+                leida: false,
+                fecha: new Date().toISOString()
+            };
+            
+            app.notificaciones.push(notificacionVendedor);
+        }
+        
+        // Notificar a bodega
+        const usuariosBodega = app.usuarios.filter(u => u.rol === 'bodega' && u.activo);
+        
+        usuariosBodega.forEach(usuario => {
+            const notificacion = {
+                id: Date.now() + Math.floor(Math.random() * 1000),
+                usuarioId: usuario.id,
+                texto: `Pedido ${pedido.numeroPedido} fue devuelto`,
+                referencia: `Cliente: ${pedido.cliente.nombre} ${pedido.cliente.apellido}`,
+                referenciaId: pedido.id,
+                tipo: 'pedido-devuelto',
+                leida: false,
+                fecha: new Date().toISOString()
+            };
+            
+            app.notificaciones.push(notificacion);
+        });
+    }
+    
+    // Actualizar contador global de notificaciones
+    actualizarContadorNotificaciones();
 }
 
 // Validar transición de estado
@@ -1005,6 +1154,18 @@ function anularPedido(pedidoId) {
     
     if (!pedido) {
         showToast('Pedido no encontrado', 'error');
+        return;
+    }
+    
+    // Verificar permisos - solo usuario maestro puede anular
+    if (app.currentUser.rol !== 'maestro') {
+        showToast('No tienes permisos para anular pedidos', 'error');
+        return;
+    }
+    
+    // Verificar estado - solo se puede anular si está en "buscando conductor"
+    if (pedido.estado !== 'buscando-conductor') {
+        showToast('Solo se pueden anular pedidos en estado "Buscando Conductor"', 'error');
         return;
     }
     
@@ -1049,14 +1210,41 @@ function anularPedido(pedidoId) {
         
         pedido.comentarios.push(comentario);
         
+        // Notificar al vendedor que creó el pedido
+        if (pedido.creador && pedido.creador.id !== app.currentUser.id) {
+            const notificacion = {
+                id: Date.now() + Math.floor(Math.random() * 1000),
+                usuarioId: pedido.creador.id,
+                texto: `Pedido ${pedido.numeroPedido} ha sido anulado`,
+                referencia: `Cliente: ${pedido.cliente.nombre} ${pedido.cliente.apellido}`,
+                referenciaId: pedidoId,
+                tipo: 'pedido-anulado',
+                leida: false,
+                fecha: new Date().toISOString()
+            };
+            
+            app.notificaciones.push(notificacion);
+            actualizarContadorNotificaciones();
+        }
+        
         // Cerrar modal de confirmación
         closeModal('confirmation-modal');
         
         // Actualizar vista de detalle
         openPedidoDetail(pedidoId);
         
+        // Actualizar tabla si estamos en la vista de pedidos
+        if (app.currentModule === 'pedidos') {
+            updatePedidosTable();
+        }
+        
+        // Actualizar dashboard si estamos en la pantalla principal
+        if (app.currentModule === 'dashboard') {
+            updateDashboard();
+        }
+        
         // Mostrar notificación de éxito
-        showToast(`Pedido ${pedido.numeroPedido} anulado`, 'warning');
+        showToast(`Pedido ${pedido.numeroPedido} anulado correctamente`, 'warning');
     });
     
     // Abrir modal de confirmación

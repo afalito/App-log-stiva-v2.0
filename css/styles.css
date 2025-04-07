@@ -210,41 +210,74 @@ textarea:focus {
     align-items: center;
     min-height: 100vh;
     background-color: var(--background-light);
+    background-image: linear-gradient(135deg, rgba(1, 58, 251, 0.05) 0%, rgba(1, 58, 251, 0.15) 100%);
 }
 
 .login-form {
     width: 100%;
     max-width: 400px;
-    padding: 2rem;
+    padding: 2.5rem;
     background-color: var(--background);
     border-radius: var(--radius);
-    box-shadow: var(--shadow);
+    box-shadow: 0 6px 30px rgba(0, 0, 0, 0.15);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    animation: loginFormAppear 0.5s ease;
+}
+
+@keyframes loginFormAppear {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.login-form:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 40px rgba(1, 58, 251, 0.2);
 }
 
 .logo-container {
     text-align: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 2rem;
 }
 
 .logo-container h1 {
     color: var(--primary-color);
-    font-size: 2rem;
+    font-size: 2.5rem;
+    font-weight: 700;
+    text-shadow: 0 2px 4px rgba(1, 58, 251, 0.2);
+    letter-spacing: -0.5px;
 }
 
 .login-form h2 {
     text-align: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 2rem;
+    color: var(--text-color);
+    font-weight: 600;
 }
 
 .login-form .btn {
     width: 100%;
-    margin-top: 1rem;
+    margin-top: 1.5rem;
+    height: 3rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.login-form .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(1, 58, 251, 0.3);
 }
 
 .forgot-password {
     text-align: center;
-    margin-top: 1rem;
-    font-size: 0.875rem;
+    margin-top: 1.5rem;
+    font-size: 0.9rem;
 }
 
 /* Layout de la Aplicación */
@@ -327,7 +360,7 @@ textarea:focus {
     position: absolute;
     top: 100%;
     right: 0;
-    width: 200px;
+    width: 220px;
     background-color: var(--background);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
@@ -335,6 +368,18 @@ textarea:focus {
     overflow: hidden;
     display: none;
     z-index: 100;
+    animation: fadeInDown 0.2s ease;
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .user-dropdown.show {
@@ -344,11 +389,13 @@ textarea:focus {
 .user-info {
     padding: 1rem;
     border-bottom: 1px solid var(--border-color);
+    background-color: var(--background-light);
 }
 
 .user-name {
     font-weight: 600;
     margin-bottom: 0.25rem;
+    color: var(--primary-color);
 }
 
 .user-role {
@@ -357,17 +404,20 @@ textarea:focus {
 }
 
 .user-dropdown ul {
-    padding: 0.5rem 0;
+    padding: 0;
 }
 
 .user-dropdown li a {
     display: block;
-    padding: 0.5rem 1rem;
+    padding: 0.75rem 1rem;
     color: var(--text-color);
+    transition: var(--transition);
+    border-left: 3px solid transparent;
 }
 
 .user-dropdown li a:hover {
     background-color: var(--background-light);
+    border-left: 3px solid var(--primary-color);
 }
 
 /* Sidebar (Menú Lateral) */
@@ -415,7 +465,7 @@ textarea:focus {
 
 /* Menú móvil */
 .mobile-nav {
-    display: none;
+    display: none; /* Se mostrará solo en versión móvil */
     position: fixed;
     bottom: 0;
     left: 0;
@@ -425,10 +475,6 @@ textarea:focus {
     border-top: 1px solid var(--border-color);
     z-index: 5;
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-}
-
-.mobile-nav {
-    display: flex;
     justify-content: space-around;
 }
 
@@ -607,6 +653,11 @@ textarea:focus {
     border-bottom: 1px solid var(--border-color);
 }
 
+.data-table td:last-child {
+    text-align: center;
+    white-space: nowrap;
+}
+
 .data-table th {
     background-color: var(--background-light);
     font-weight: 600;
@@ -678,6 +729,16 @@ textarea:focus {
     color: #dc3545;
 }
 
+.status-anulado {
+    background-color: rgba(108, 117, 125, 0.1);
+    color: #6c757d;
+}
+
+tr.anulado {
+    text-decoration: line-through;
+    opacity: 0.7;
+}
+
 /* Informes */
 .informes-container {
     display: grid;
@@ -710,8 +771,81 @@ textarea:focus {
 .preview-content {
     min-height: 300px;
     display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+}
+
+/* Informe Resumen y Tabla */
+.informe-resumen {
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    justify-content: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    width: 100%;
+}
+
+.informe-resumen p {
+    margin: 0;
+}
+
+.informe-table-container {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: 600px; /* Altura máxima antes de añadir scroll vertical */
+    margin-bottom: 1.5rem;
+}
+
+.informe-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.informe-table th,
+.informe-table td {
+    border: 1px solid var(--border-color);
+    padding: 0.75rem;
+    text-align: left;
+}
+
+.informe-table th {
+    background-color: var(--background-light);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    font-weight: 600;
+}
+
+.informe-table tr:nth-child(even) {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.informe-table tr:hover {
+    background-color: var(--primary-light);
+}
+
+/* Estilo para scrollbar horizontal de la tabla */
+.informe-table-container::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+}
+
+.informe-table-container::-webkit-scrollbar-track {
+    background: var(--background-light);
+    border-radius: 10px;
+}
+
+.informe-table-container::-webkit-scrollbar-thumb {
+    background: var(--primary-light);
+    border-radius: 10px;
+}
+
+.informe-table-container::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-color);
 }
 
 /* Notificaciones */
@@ -992,6 +1126,8 @@ textarea:focus {
 .pedido-actions {
     display: flex;
     gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
 .pedido-sections {
@@ -1252,7 +1388,7 @@ textarea:focus {
     width: 100%;
     height: 100%;
     background-color: rgba(255, 255, 255, 0.9);
-    display: flex;
+    display: none; /* Cambiado de flex a none para estar oculto por defecto */
     align-items: center;
     justify-content: center;
     z-index: 3000;
@@ -1295,6 +1431,20 @@ textarea:focus {
     .informes-container {
         grid-template-columns: 1fr;
     }
+    
+    .informe-resumen {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .informe-table {
+        font-size: 0.8rem;
+    }
+    
+    .informe-table th,
+    .informe-table td {
+        padding: 0.5rem;
+    }
 }
 
 @media (max-width: 768px) {
@@ -1333,5 +1483,63 @@ textarea:focus {
     
     .page-title {
         display: none;
+    }
+    
+    .informe-table {
+        font-size: 0.75rem;
+    }
+    
+    .informe-table th,
+    .informe-table td {
+        padding: 0.4rem;
+    }
+    
+    .informes-preview {
+        padding: 1rem 0.75rem;
+    }
+    
+    .informes-filters {
+        padding: 1rem;
+    }
+}
+
+/* Estilos para impresión */
+@media print {
+    body {
+        background-color: white;
+    }
+    
+    .top-bar, .sidebar, .mobile-nav, .toast-container, .app-loader, 
+    .module-header, .informes-filters, .btn {
+        display: none !important;
+    }
+    
+    .main-content {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+    }
+    
+    .informes-preview {
+        box-shadow: none;
+        padding: 0;
+    }
+    
+    .informe-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 10pt;
+    }
+    
+    .informe-table th, .informe-table td {
+        border: 1px solid #000;
+    }
+    
+    .informe-resumen {
+        margin-bottom: 20px;
+    }
+    
+    @page {
+        margin: 1cm;
     }
 }

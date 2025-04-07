@@ -12,6 +12,12 @@ const app = {
 
 // Inicialización de la aplicación
 document.addEventListener('DOMContentLoaded', () => {
+    // Mostrar el cargador
+    const appLoader = document.getElementById('app-loader');
+    if (appLoader) {
+        appLoader.style.display = 'flex';
+    }
+    
     // Iniciar la auth
     initAuth();
     
@@ -34,6 +40,11 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Cargar datos de ejemplo para desarrollo
     loadDummyData();
+    
+    // Ocultar el cargador después de completar todas las inicializaciones
+    if (appLoader) {
+        appLoader.style.display = 'none';
+    }
 });
 
 // Inicialización de módulos
@@ -73,6 +84,12 @@ function initUI() {
             if (module) {
                 changeModule(module);
             }
+            
+            // Si es el menú "más" en móvil, mostrar menú adicional
+            if (module === 'menu') {
+                toggleMobileMenu();
+                return;
+            }
         });
     });
     
@@ -102,6 +119,10 @@ function initUI() {
     
     // Eventos para los modales
     setupModals();
+    
+    // Detectar cambios de tamaño de pantalla para móvil/escritorio
+    window.addEventListener('resize', handleResize);
+    handleResize(); // Ejecutar una vez al inicio
 }
 
 // Configuración de modales
@@ -531,21 +552,39 @@ function loadDummyData() {
         app.productos = [
             {
                 id: 1,
-                nombre: 'Producto 1',
-                descripcion: 'Descripción del producto 1',
-                precio: 50000
+                nombre: 'Laptop HP Pavilion',
+                descripcion: 'Laptop de 15" con procesador Intel i5, 8GB RAM, 512GB SSD',
+                precio: 2500000
             },
             {
                 id: 2,
-                nombre: 'Producto 2',
-                descripcion: 'Descripción del producto 2',
-                precio: 75000
+                nombre: 'Monitor Dell 24"',
+                descripcion: 'Monitor FHD de 24 pulgadas con panel IPS',
+                precio: 750000
             },
             {
                 id: 3,
-                nombre: 'Producto 3',
-                descripcion: 'Descripción del producto 3',
-                precio: 120000
+                nombre: 'Teclado Mecánico Logitech',
+                descripcion: 'Teclado mecánico RGB con switches Blue',
+                precio: 320000
+            },
+            {
+                id: 4,
+                nombre: 'Mouse Inalámbrico',
+                descripcion: 'Mouse ergonómico con conexión bluetooth',
+                precio: 85000
+            },
+            {
+                id: 5,
+                nombre: 'Auriculares Sony',
+                descripcion: 'Auriculares inalámbricos con cancelación de ruido',
+                precio: 650000
+            },
+            {
+                id: 6,
+                nombre: 'Tablet Samsung',
+                descripcion: 'Tablet Android de 10" con 64GB de almacenamiento',
+                precio: 900000
             }
         ];
     }
@@ -555,11 +594,15 @@ function loadDummyData() {
         const fechaHoy = new Date();
         const fechaAyer = new Date(fechaHoy);
         fechaAyer.setDate(fechaAyer.getDate() - 1);
+        const fechaAnteayer = new Date(fechaHoy);
+        fechaAnteayer.setDate(fechaAnteayer.getDate() - 2);
+        const fechaSemanaPasada = new Date(fechaHoy);
+        fechaSemanaPasada.setDate(fechaSemanaPasada.getDate() - 6);
         
         app.pedidos = [
             {
                 id: 1,
-                numeroPedido: 'FL001',
+                numeroPedido: 'FX001',
                 cliente: {
                     nombre: 'Pedro',
                     apellido: 'Ramírez',
@@ -570,13 +613,20 @@ function loadDummyData() {
                 productos: [
                     {
                         id: 1,
-                        nombre: 'Producto 1',
-                        cantidad: 2,
-                        precioUnitario: 50000,
-                        subtotal: 100000
+                        nombre: 'Laptop HP Pavilion',
+                        cantidad: 1,
+                        precioUnitario: 2500000,
+                        subtotal: 2500000
+                    },
+                    {
+                        id: 4,
+                        nombre: 'Mouse Inalámbrico',
+                        cantidad: 1,
+                        precioUnitario: 85000,
+                        subtotal: 85000
                     }
                 ],
-                total: 100000,
+                total: 2585000,
                 tipoPago: 'contraentrega',
                 estado: 'buscando-conductor',
                 fechaCreacion: fechaHoy.toISOString(),
@@ -593,7 +643,7 @@ function loadDummyData() {
             },
             {
                 id: 2,
-                numeroPedido: 'FL002',
+                numeroPedido: 'FX002',
                 cliente: {
                     nombre: 'Ana',
                     apellido: 'Sánchez',
@@ -604,20 +654,20 @@ function loadDummyData() {
                 productos: [
                     {
                         id: 2,
-                        nombre: 'Producto 2',
-                        cantidad: 1,
-                        precioUnitario: 75000,
-                        subtotal: 75000
+                        nombre: 'Monitor Dell 24"',
+                        cantidad: 2,
+                        precioUnitario: 750000,
+                        subtotal: 1500000
                     },
                     {
                         id: 3,
-                        nombre: 'Producto 3',
+                        nombre: 'Teclado Mecánico Logitech',
                         cantidad: 1,
-                        precioUnitario: 120000,
-                        subtotal: 120000
+                        precioUnitario: 320000,
+                        subtotal: 320000
                     }
                 ],
-                total: 195000,
+                total: 1820000,
                 tipoPago: 'anticipado',
                 estado: 'en-proceso',
                 fechaCreacion: fechaAyer.toISOString(),
@@ -629,6 +679,12 @@ function loadDummyData() {
                         texto: 'Pedido asignado a Carlos Gómez',
                         usuario: app.usuarios[2].nombre + ' ' + app.usuarios[2].apellido,
                         fecha: fechaAyer.toISOString()
+                    },
+                    {
+                        id: 2,
+                        texto: 'Confirmo recepción del pedido, procedo a entrega',
+                        usuario: app.usuarios[3].nombre + ' ' + app.usuarios[3].apellido,
+                        fecha: fechaHoy.toISOString()
                     }
                 ],
                 historial: [
@@ -648,19 +704,249 @@ function loadDummyData() {
                         usuario: app.usuarios[3].nombre + ' ' + app.usuarios[3].apellido
                     }
                 ]
+            },
+            {
+                id: 3,
+                numeroPedido: 'FX003',
+                cliente: {
+                    nombre: 'Carlos',
+                    apellido: 'Mendoza',
+                    direccion: 'Av. Principal 789',
+                    ciudad: 'Cali',
+                    departamento: 'Valle del Cauca'
+                },
+                productos: [
+                    {
+                        id: 5,
+                        nombre: 'Auriculares Sony',
+                        cantidad: 1,
+                        precioUnitario: 650000,
+                        subtotal: 650000
+                    }
+                ],
+                total: 650000,
+                tipoPago: 'contraentrega',
+                estado: 'entregado-pendiente',
+                fechaCreacion: fechaAnteayer.toISOString(),
+                creador: app.usuarios[1], // Vendedor
+                conductor: app.usuarios[3], // Conductor
+                comentarios: [
+                    {
+                        id: 3,
+                        texto: 'Pedido entregado con éxito. Pendiente recibir el pago.',
+                        usuario: app.usuarios[3].nombre + ' ' + app.usuarios[3].apellido,
+                        fecha: fechaAyer.toISOString()
+                    }
+                ],
+                historial: [
+                    {
+                        fecha: fechaAnteayer.toISOString(),
+                        estado: 'buscando-conductor',
+                        usuario: app.usuarios[1].nombre + ' ' + app.usuarios[1].apellido
+                    },
+                    {
+                        fecha: fechaAnteayer.toISOString(),
+                        estado: 'conductor-asignado',
+                        usuario: app.usuarios[2].nombre + ' ' + app.usuarios[2].apellido
+                    },
+                    {
+                        fecha: fechaAyer.toISOString(),
+                        estado: 'en-proceso',
+                        usuario: app.usuarios[3].nombre + ' ' + app.usuarios[3].apellido
+                    },
+                    {
+                        fecha: fechaAyer.toISOString(),
+                        estado: 'entregado-pendiente',
+                        usuario: app.usuarios[3].nombre + ' ' + app.usuarios[3].apellido
+                    }
+                ]
+            },
+            {
+                id: 4,
+                numeroPedido: 'FX004',
+                cliente: {
+                    nombre: 'Laura',
+                    apellido: 'Gutiérrez',
+                    direccion: 'Calle 67 #45-12',
+                    ciudad: 'Barranquilla',
+                    departamento: 'Atlántico'
+                },
+                productos: [
+                    {
+                        id: 6,
+                        nombre: 'Tablet Samsung',
+                        cantidad: 1,
+                        precioUnitario: 900000,
+                        subtotal: 900000
+                    },
+                    {
+                        id: 4,
+                        nombre: 'Mouse Inalámbrico',
+                        cantidad: 1,
+                        precioUnitario: 85000,
+                        subtotal: 85000
+                    }
+                ],
+                total: 985000,
+                tipoPago: 'anticipado',
+                estado: 'finalizado',
+                fechaCreacion: fechaSemanaPasada.toISOString(),
+                fechaFinalizacion: fechaAnteayer.toISOString(),
+                creador: app.usuarios[1], // Vendedor
+                conductor: app.usuarios[3], // Conductor
+                comentarios: [
+                    {
+                        id: 4,
+                        texto: 'Pedido entregado correctamente.',
+                        usuario: app.usuarios[3].nombre + ' ' + app.usuarios[3].apellido,
+                        fecha: fechaAnteayer.toISOString()
+                    }
+                ],
+                historial: [
+                    {
+                        fecha: fechaSemanaPasada.toISOString(),
+                        estado: 'buscando-conductor',
+                        usuario: app.usuarios[1].nombre + ' ' + app.usuarios[1].apellido
+                    },
+                    {
+                        fecha: fechaSemanaPasada.toISOString(),
+                        estado: 'conductor-asignado',
+                        usuario: app.usuarios[2].nombre + ' ' + app.usuarios[2].apellido
+                    },
+                    {
+                        fecha: fechaSemanaPasada.toISOString(),
+                        estado: 'en-proceso',
+                        usuario: app.usuarios[3].nombre + ' ' + app.usuarios[3].apellido
+                    },
+                    {
+                        fecha: fechaAnteayer.toISOString(),
+                        estado: 'finalizado',
+                        usuario: app.usuarios[3].nombre + ' ' + app.usuarios[3].apellido
+                    }
+                ]
+            },
+            {
+                id: 5,
+                numeroPedido: 'FX005',
+                cliente: {
+                    nombre: 'Roberto',
+                    apellido: 'Fernández',
+                    direccion: 'Av. Libertador 123',
+                    ciudad: 'Santa Marta',
+                    departamento: 'Magdalena'
+                },
+                productos: [
+                    {
+                        id: 1,
+                        nombre: 'Laptop HP Pavilion',
+                        cantidad: 1,
+                        precioUnitario: 2500000,
+                        subtotal: 2500000
+                    }
+                ],
+                total: 2500000,
+                tipoPago: 'contraentrega',
+                estado: 'devuelto',
+                fechaCreacion: fechaAnteayer.toISOString(),
+                creador: app.usuarios[1], // Vendedor
+                conductor: app.usuarios[3], // Conductor
+                comentarios: [
+                    {
+                        id: 5,
+                        texto: 'Cliente no se encontraba en la dirección indicada. Se intentó contactar sin éxito.',
+                        usuario: app.usuarios[3].nombre + ' ' + app.usuarios[3].apellido,
+                        fecha: fechaAyer.toISOString()
+                    }
+                ],
+                historial: [
+                    {
+                        fecha: fechaAnteayer.toISOString(),
+                        estado: 'buscando-conductor',
+                        usuario: app.usuarios[1].nombre + ' ' + app.usuarios[1].apellido
+                    },
+                    {
+                        fecha: fechaAnteayer.toISOString(),
+                        estado: 'conductor-asignado',
+                        usuario: app.usuarios[2].nombre + ' ' + app.usuarios[2].apellido
+                    },
+                    {
+                        fecha: fechaAnteayer.toISOString(),
+                        estado: 'en-proceso',
+                        usuario: app.usuarios[3].nombre + ' ' + app.usuarios[3].apellido
+                    },
+                    {
+                        fecha: fechaAyer.toISOString(),
+                        estado: 'devuelto',
+                        usuario: app.usuarios[3].nombre + ' ' + app.usuarios[3].apellido
+                    }
+                ]
             }
         ];
         
-        app.nextPedidoId = 3; // El próximo ID será 3
+        app.nextPedidoId = 6; // El próximo ID será 6
+        
+        // Crear notificaciones de ejemplo
+        app.notificaciones = [
+            {
+                id: 1001,
+                usuarioId: 4, // Conductor
+                texto: 'Se te ha asignado un nuevo pedido: FX002',
+                referencia: 'Pedido para Ana Sánchez',
+                referenciaId: 2,
+                tipo: 'pedido-asignacion',
+                leida: true,
+                fecha: fechaAyer.toISOString()
+            },
+            {
+                id: 1002,
+                usuarioId: 5, // Tesorería
+                texto: 'Pedido FX003 entregado, pendiente de pago',
+                referencia: 'Cliente: Carlos Mendoza',
+                referenciaId: 3,
+                tipo: 'pedido-pendiente-pago',
+                leida: false,
+                fecha: fechaAyer.toISOString()
+            },
+            {
+                id: 1003,
+                usuarioId: 2, // Vendedor
+                texto: 'Pedido FX004 finalizado exitosamente',
+                referencia: 'Cliente: Laura Gutiérrez',
+                referenciaId: 4,
+                tipo: 'pedido-finalizado',
+                leida: true,
+                fecha: fechaAnteayer.toISOString()
+            },
+            {
+                id: 1004,
+                usuarioId: 2, // Vendedor
+                texto: 'Pedido FX005 fue devuelto',
+                referencia: 'Cliente: Roberto Fernández',
+                referenciaId: 5,
+                tipo: 'pedido-devuelto',
+                leida: false,
+                fecha: fechaAyer.toISOString()
+            },
+            {
+                id: 1005,
+                usuarioId: 3, // Bodega
+                texto: 'Pedido FX005 fue devuelto',
+                referencia: 'Cliente: Roberto Fernández',
+                referenciaId: 5,
+                tipo: 'pedido-devuelto',
+                leida: false,
+                fecha: fechaAyer.toISOString()
+            }
+        ];
     }
 }
 
 // Función para generar número de pedido
 function generarNumeroPedido() {
-    // Formato FL001, FL002, etc.
+    // Formato FX001, FX002, etc. (FX por Fluxon)
     const numPedido = app.nextPedidoId.toString().padStart(3, '0');
     app.nextPedidoId++;
-    return `FL${numPedido}`;
+    return `FX${numPedido}`;
 }
 
 // Función para buscar menciones en un texto
@@ -680,11 +966,14 @@ function buscarMenciones(texto) {
 function crearNotificacionesMenciones(texto, pedidoId, usuarioEmisor) {
     const menciones = buscarMenciones(texto);
     
-    if (menciones.length === 0) return;
+    if (menciones.length === 0) return [];
     
     // Buscar pedido
     const pedido = app.pedidos.find(p => p.id === pedidoId);
-    if (!pedido) return;
+    if (!pedido) return [];
+    
+    // Lista de usuarios mencionados con éxito
+    const usuariosMencionados = [];
     
     // Por cada mención, crear notificación
     menciones.forEach(username => {
@@ -706,9 +995,68 @@ function crearNotificacionesMenciones(texto, pedidoId, usuarioEmisor) {
             };
             
             app.notificaciones.push(notificacion);
+            usuariosMencionados.push(usuarioMencionado);
             
-            // Actualizar contador de notificaciones
-            actualizarContadorNotificaciones();
+            console.log(`Notificación de mención creada para ${usuarioMencionado.username}`);
         }
     });
+    
+    // Actualizar contador de notificaciones solo si se crearon notificaciones
+    if (usuariosMencionados.length > 0) {
+        actualizarContadorNotificaciones();
+    }
+    
+    return usuariosMencionados;
+}
+
+// Manejar cambio de tamaño de ventana para adaptar vista móvil/escritorio
+function handleResize() {
+    const isMobile = window.innerWidth < 768;
+    const sidebar = document.getElementById('sidebar');
+    const mobileNav = document.getElementById('mobile-nav');
+    const mainContent = document.getElementById('main-content');
+    
+    if (sidebar && mobileNav && mainContent) {
+        if (isMobile) {
+            // Configuración para móvil
+            sidebar.classList.add('mobile');
+            sidebar.style.transform = 'translateX(-100%)';
+            mobileNav.style.display = 'flex';
+            mainContent.style.marginLeft = '0';
+            mainContent.style.marginBottom = 'var(--mobile-nav-height)';
+        } else {
+            // Configuración para escritorio
+            sidebar.classList.remove('mobile');
+            sidebar.style.transform = 'translateX(0)';
+            mobileNav.style.display = 'none';
+            mainContent.style.marginLeft = 'var(--sidebar-width)';
+            mainContent.style.marginBottom = '0';
+        }
+    }
+    
+    // Informar en consola para depuración
+    console.log(`Resolución detectada: ${window.innerWidth}px - Modo ${isMobile ? 'móvil' : 'escritorio'}`);
+}
+
+// Mostrar menú adicional en móvil (cuando se presiona "Más")
+function toggleMobileMenu() {
+    const sidebar = document.getElementById('sidebar');
+    
+    if (sidebar) {
+        if (sidebar.style.transform === 'translateX(0px)') {
+            // Ocultar sidebar
+            sidebar.style.transform = 'translateX(-100%)';
+        } else {
+            // Mostrar sidebar
+            sidebar.style.transform = 'translateX(0)';
+            
+            // Añadir evento para ocultar al hacer clic fuera
+            document.body.addEventListener('click', function hideSidebar(e) {
+                if (!sidebar.contains(e.target)) {
+                    sidebar.style.transform = 'translateX(-100%)';
+                    document.body.removeEventListener('click', hideSidebar);
+                }
+            }, { once: true });
+        }
+    }
 }
