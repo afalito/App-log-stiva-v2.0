@@ -1,0 +1,53 @@
+# Dependencias
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Archivos de entorno
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# Archivos de construcción
+dist/
+build/
+out/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+.directory
+
+# Archivos del IDE/Editor
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Archivos temporales
+tmp/
+temp/
+*.tmp
+
+# Archivos de respaldo
+*.bak
+*.backup
+
+# Archivos específicos del proyecto
+# Agregar aquí archivos específicos si es necesario

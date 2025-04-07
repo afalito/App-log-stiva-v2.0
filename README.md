@@ -5,7 +5,7 @@ Fluxon Logistics es una aplicación de gestión logística diseñada para facili
 
 ## Características
 
-### Gestion de Usuarios con Roles Específicos
+### Gestión de Usuarios con Roles Específicos
 - **Usuario Maestro**: Administración completa del sistema
 - **Usuario Vendedor**: Creación y seguimiento de pedidos
 - **Usuario Bodega**: Asignación de conductores a pedidos
@@ -47,21 +47,23 @@ Fluxon Logistics es una aplicación de gestión logística diseñada para facili
 5. Si es contraentrega, el usuario de tesorería confirma el pago para finalizar el pedido
 
 ## Tecnologías Utilizadas
-- HTML5, CSS3 y JavaScript puro (vanilla)
-- Diseño responsivo para dispositivos móviles y web
-- Almacenamiento local para demo y pruebas
-- Service Workers para funcionalidad offline y PWA
-- Web Push API para notificaciones
+- **Frontend**: HTML5, CSS3 y JavaScript puro (vanilla)
+- **Backend**: Supabase (PostgreSQL, Auth)
+- **Diseño**: Responsivo para dispositivos móviles y web
+- **Almacenamiento**: Supabase para producción, localStorage como fallback
+- **PWA**: Service Workers para funcionalidad offline
+- **Notificaciones**: Web Push API
 
 ## Comenzando
 
 ### Prerrequisitos
 - Navegador web moderno (Chrome, Firefox, Safari, Edge)
+- Cuenta en Supabase (para el backend)
 
 ### Instalación
 1. Clona este repositorio
-2. Abre el archivo `index.html` en tu navegador
-3. Para una experiencia completa, usa un servidor local:
+2. Configura Supabase siguiendo las instrucciones en `SUPABASE_SETUP.md`
+3. Abre el archivo `index.html` en tu navegador o usa un servidor local:
    ```
    # Con Python
    python -m http.server 8000
@@ -69,6 +71,14 @@ Fluxon Logistics es una aplicación de gestión logística diseñada para facili
    # Con Node.js y http-server
    npx http-server
    ```
+
+### Configuración de Supabase
+Para configurar el backend de Supabase:
+1. Sigue la guía detallada en `SUPABASE_SETUP.md`
+2. Ejecuta los scripts SQL incluidos en la carpeta `/sql` para:
+   - Crear las tablas necesarias
+   - Configurar Row Level Security (RLS)
+   - Crear los usuarios en el sistema de autenticación
 
 ### Instalación como PWA
 1. Abre la aplicación en Chrome o Edge
@@ -89,11 +99,14 @@ Fluxon Logistics es una aplicación de gestión logística diseñada para facili
 ├── index.html            # Archivo principal HTML
 ├── manifest.json         # Manifest para PWA
 ├── sw.js                 # Service Worker
+├── SUPABASE_SETUP.md     # Guía de configuración de Supabase
+├── CLAUDE_MEMORY.md      # Registro del historial de desarrollo
 ├── css/
 │   └── styles.css        # Estilos CSS de la aplicación
 ├── js/
 │   ├── app.js            # Lógica principal de la aplicación
 │   ├── auth.js           # Gestión de autenticación
+│   ├── supabase-config.js # Configuración de la conexión a Supabase
 │   ├── pwa.js            # Funcionalidad de PWA
 │   ├── pwa-install.js    # Lógica de instalación de PWA
 │   └── modules/          # Módulos específicos
@@ -102,25 +115,27 @@ Fluxon Logistics es una aplicación de gestión logística diseñada para facili
 │       ├── usuarios.js   # Administración de usuarios
 │       ├── informes.js   # Generación de informes
 │       └── notificaciones.js # Sistema de notificaciones
+├── sql/                  # Scripts SQL para Supabase
+│   ├── create_tables.sql # Creación de tablas
+│   ├── enable_rls.sql    # Configuración de Row Level Security
+│   ├── create_auth_users.sql # Creación de usuarios en Auth
+│   └── drop_tables.sql   # Script para eliminar tablas (precaución)
 └── img/                  # Iconos y recursos visuales
 ```
 
-## Funcionalidades en Dispositivos Móviles
-- Navegación optimizada para pantallas pequeñas
-- Menú inferior para acceso rápido a funciones principales
-- Vista ampliada al presionar "Más" para acceder a todas las opciones
-- Tablas adaptadas para mejor visualización en pantallas pequeñas
-- Instalable como aplicación nativa
-
-## Notificaciones Push
-- La aplicación solicitará permisos para enviar notificaciones
-- Las notificaciones de sistema se mostrarán incluso con la app cerrada
-- Incluye badging (contador) en el icono de la aplicación
+## Modos de funcionamiento
+- **Modo Online**: Conectado a Supabase como backend
+- **Modo Offline**: Funcionalidad offline básica con datos en localStorage
+- **Modo Fallback**: Si hay problemas de conexión, utiliza datos locales temporalmente
 
 ## Notas Importantes
-- Esta versión utiliza almacenamiento en memoria y localStorage para demostración
-- Los datos se reinician al cerrar completamente el navegador
-- Para una implementación real, se recomienda integrar con un backend y base de datos
+- La aplicación intenta usar Supabase como backend principal
+- Si la conexión falla, utiliza localStorage como fallback
+- Para desarrollo y pruebas, se incluyen datos de ejemplo
+
+## Documentación adicional
+- Ver `SUPABASE_SETUP.md` para la configuración detallada de Supabase
+- Ver `CLAUDE_MEMORY.md` para el historial de desarrollo y estado actual
 
 ---
 

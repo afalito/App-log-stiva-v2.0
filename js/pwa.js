@@ -36,9 +36,11 @@ function requestNotificationPermission() {
       notification.className = 'permission-notification';
       notification.innerHTML = `
         <div class="permission-content">
-          <p>¿Quieres recibir notificaciones para estar al día con tus pedidos?</p>
-          <button id="accept-notifications" class="btn btn-primary">Permitir</button>
-          <button id="reject-notifications" class="btn btn-text">Ahora no</button>
+          <p>¿Quieres recibir notificaciones para tus pedidos?</p>
+          <div class="notification-actions">
+            <button id="accept-notifications" class="btn btn-primary btn-small">Permitir</button>
+            <button id="reject-notifications" class="btn btn-text btn-small">Ahora no</button>
+          </div>
         </div>
       `;
       
@@ -46,19 +48,38 @@ function requestNotificationPermission() {
       
       // Evento para permitir notificaciones
       document.getElementById('accept-notifications').addEventListener('click', () => {
-        Notification.requestPermission()
-          .then(permission => {
-            if (permission === 'granted') {
-              console.log('Permiso de notificaciones concedido');
-              notification.remove();
-            }
-          });
+        // Primero quitamos el widget para evitar confusión
+        notification.remove();
+        
+        // Luego solicitamos el permiso con un pequeño retraso
+        setTimeout(() => {
+          Notification.requestPermission()
+            .then(permission => {
+              console.log('Resultado de solicitud de notificaciones:', permission);
+              if (permission === 'granted') {
+                console.log('Permiso de notificaciones concedido');
+                // Si se concede permiso, intentamos suscribir a notificaciones push
+                if ('serviceWorker' in navigator && 'PushManager' in window) {
+                  subscribeToPushNotifications();
+                }
+              }
+            })
+            .catch(error => {
+              console.error('Error al solicitar permisos de notificación:', error);
+            });
+        }, 100);
       });
       
       // Evento para rechazar notificaciones
       document.getElementById('reject-notifications').addEventListener('click', () => {
         notification.remove();
       });
+    } else if (Notification.permission === 'granted') {
+      console.log('Permiso de notificaciones ya concedido');
+      // Si ya tiene permiso, intentar suscribir a push notifications
+      if ('serviceWorker' in navigator && 'PushManager' in window) {
+        subscribeToPushNotifications();
+      }
     }
   }
 }
