@@ -29,45 +29,44 @@ function setupProductosEvents() {
 // Cargar productos desde Supabase
 async function loadProductos() {
     try {
-        const supabase = getSupabaseClient();
-        
         // Mostrar cargador
         const appLoader = document.getElementById('app-loader');
         if (appLoader) {
             appLoader.style.display = 'flex';
         }
         
-        // Consultar productos
-        const { data, error } = await supabase
-            .from('productos')
-            .select('*')
-            .order('id', { ascending: true });
-        
-        if (error) throw error;
-        
-        // Actualizar productos en la aplicación
-        app.productos = data || [];
+        // Intentar cargar productos usando la función centralizada
+        try {
+            const productos = await dbOperations.fetchProductos();
+            // Actualizar productos en la aplicación
+            app.productos = productos || [];
+            console.log(`${productos.length} productos cargados desde Supabase`);
+        } catch (dbError) {
+            console.error('Error al cargar productos desde Supabase:', dbError);
+            
+            // Si estamos offline, usar datos en caché
+            if (!navigator.onLine) {
+                showToast('Usando datos en caché para productos', 'warning');
+            } else {
+                // Si hay un error que no es por estar offline, mostrar mensaje
+                showToast('Error al cargar productos del servidor', 'error');
+            }
+        }
         
         // Actualizar tabla
         updateProductosTable();
         
-        // Ocultar cargador
-        if (appLoader) {
-            appLoader.style.display = 'none';
-        }
-        
-        return data;
+        return app.productos;
     } catch (error) {
-        console.error('Error al cargar productos:', error);
-        showToast('Error al cargar los productos', 'error');
-        
-        // Ocultar cargador en caso de error
+        console.error('Error general al cargar productos:', error);
+        showToast('Error al cargar los productos: ' + error.message, 'error');
+        return [];
+    } finally {
+        // Ocultar cargador
         const appLoader = document.getElementById('app-loader');
         if (appLoader) {
             appLoader.style.display = 'none';
         }
-        
-        return [];
     }
 }
 

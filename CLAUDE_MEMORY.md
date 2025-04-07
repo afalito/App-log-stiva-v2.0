@@ -38,10 +38,11 @@ Fluxon Logistics es una aplicación de gestión logística para seguimiento de p
    - Actualizar `cambiarEstadoPedido()` para sincronizar con Supabase
    - Integrar `generarNotificacionesCambioEstado()` con el sistema de notificaciones Supabase
    
-   b. **Módulo de Usuarios (js/modules/usuarios.js)**
-   - Migrar `saveUsuario()` para crear/actualizar usuarios en Supabase Auth y tabla usuarios
-   - Conectar `toggleUsuarioStatus()` para activar/desactivar usuarios en Supabase
-   - Eliminar referencias a localStorage para persistencia de usuarios
+   b. **Módulo de Usuarios (js/modules/usuarios.js)** ✅
+   - ✅ Migrar `saveUsuario()` para crear/actualizar usuarios en Supabase Auth y tabla usuarios
+   - ✅ Conectar `toggleUsuarioStatus()` para activar/desactivar usuarios en Supabase
+   - ✅ Actualizar `updateUsuariosTable()` para cargar datos desde Supabase
+   - ✅ Implementar manejo offline con sistema de sincronización
    
    c. **Módulo de Informes (js/modules/informes.js)**
    - Actualizar `generarInforme()` para consultar datos desde Supabase
@@ -143,6 +144,16 @@ Consultar el [README.md](./README.md) para información detallada sobre:
 - Definición del plan detallado para completar la migración a Supabase
 - Creación del script para la tabla comentarios_pedido
 
+### Sesión 6: Integración del módulo de usuarios con Supabase (08/04/2025)
+- Creación de sistema de sincronización offline (sync_offline.js)
+- Actualización de index.html para cargar los nuevos scripts
+- Migración completa del módulo de usuarios a Supabase
+- Implementación de updateUsuariosTable() con carga desde Supabase
+- Actualización de saveUsuario() para crear/actualizar usuarios en Supabase
+- Implementación de toggleUsuarioStatus() para activar/desactivar usuarios en Supabase
+- Manejo de conexión intermitente y sincronización en modo offline
+- Integración con el sistema de autenticación existente
+
 ## Notas técnicas importantes
 
 ### Arquitectura de la aplicación
@@ -158,13 +169,13 @@ Consultar el [README.md](./README.md) para información detallada sobre:
 - Método de respaldo: Autenticación directa contra tabla usuarios
 
 ### Estructura de la base de datos
-- `usuarios`: Almacena información de los usuarios (conectado parcialmente)
+- `usuarios`: Almacena información de los usuarios (✅ conectado)
 - `productos`: Catálogo de productos (pendiente de conectar)
 - `pedidos`: Información principal de pedidos (pendiente de conectar)
 - `detalles_pedido`: Productos en cada pedido (pendiente de conectar)
 - `historial_pedidos`: Registro de cambios de estado (pendiente de conectar)
-- `notificaciones`: Sistema de notificaciones a usuarios (conectado)
-- `preferencias_usuario`: Almacena configuraciones específicas de cada usuario (conectado)
+- `notificaciones`: Sistema de notificaciones a usuarios (✅ conectado)
+- `preferencias_usuario`: Almacena configuraciones específicas de cada usuario (✅ conectado)
 - `comentarios_pedido`: Comentarios asociados a pedidos (pendiente de crear y conectar)
 
 ### Row Level Security (RLS)
