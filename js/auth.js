@@ -8,6 +8,15 @@ function initAuth() {
             loginUser();
         });
     }
+    
+    // Enlace de olvidó contraseña
+    const forgotPasswordLink = document.getElementById('forgot-password-link');
+    if (forgotPasswordLink) {
+        forgotPasswordLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            showToast('Por favor contacte a su administrador para restablecer su contraseña', 'info', 5000);
+        });
+    }
 }
 
 // Función para iniciar sesión
@@ -42,12 +51,21 @@ function loginUser() {
     
     // Simulamos una breve demora para dar sensación de procesamiento
     setTimeout(() => {
+        // Aseguramos que los datos de ejemplo estén cargados
+        if (app.usuarios.length === 0) {
+            console.log("Cargando datos de ejemplo antes de login...");
+            loadDummyData();
+        }
+        
+        console.log("Intentando login con:", username, "Usuarios disponibles:", app.usuarios.length);
+        
         // Buscar usuario en la "base de datos"
         const user = app.usuarios.find(u => 
             u.username === username && u.password === password && u.activo
         );
         
         if (user) {
+            console.log("Usuario encontrado:", user.nombre, user.rol);
             // Guardar usuario en la aplicación
             app.currentUser = {
                 id: user.id,
@@ -63,11 +81,21 @@ function loginUser() {
             // Continuar con el inicio de sesión
             loginSuccess();
         } else {
+            console.log("Login fallido para usuario:", username);
             // Ocultar cargador
             if (appLoader) {
                 appLoader.style.display = 'none';
             }
-            document.getElementById('password-error').textContent = 'Usuario o contraseña incorrectos';
+            // Verificar si el usuario existe pero la contraseña es incorrecta
+            const userExists = app.usuarios.some(u => u.username === username);
+            if (userExists) {
+                console.log("El usuario existe pero la contraseña es incorrecta");
+                document.getElementById('password-error').textContent = 'Contraseña incorrecta';
+            } else {
+                console.log("Usuario no encontrado entre los", app.usuarios.length, "usuarios disponibles");
+                document.getElementById('username-error').textContent = 'Usuario no encontrado';
+                document.getElementById('password-error').textContent = 'Verifica tus credenciales';
+            }
         }
     }, 500); // Medio segundo de demora para mejorar la experiencia de usuario
 }

@@ -12,11 +12,18 @@ const app = {
 
 // Inicialización de la aplicación
 document.addEventListener('DOMContentLoaded', () => {
+    console.log("Iniciando aplicación...");
+    
     // Mostrar el cargador
     const appLoader = document.getElementById('app-loader');
     if (appLoader) {
         appLoader.style.display = 'flex';
     }
+    
+    // Cargar datos de ejemplo para desarrollo PRIMERO
+    console.log("Cargando datos de usuarios de ejemplo...");
+    loadDummyData();
+    console.log("Usuarios cargados:", app.usuarios.length);
     
     // Iniciar la auth
     initAuth();
@@ -26,9 +33,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Inicializar UI components
     initUI();
-    
-    // Cargar datos de ejemplo para desarrollo primero
-    loadDummyData();
     
     // Después cargar usuario desde localStorage 
     const savedUser = localStorage.getItem('currentUser');
