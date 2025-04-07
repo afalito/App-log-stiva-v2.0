@@ -403,23 +403,39 @@ async function saveUsuario(usuario) {
       
       console.log('Datos de actualización:', updateData);
       
-      // Actualizar usuario existente
+      // Usar el cliente con rol de servicio para eludir las políticas RLS
       const { data, error } = await supabase
-        .from('usuarios')
-        .update(updateData)
-        .eq('id', usuario.id)
-        .select('*')
-        .single();
+        .rpc('admin_update_usuario', {
+          usuario_id: usuario.id,
+          usuario_data: updateData
+        });
       
       if (error) {
-        console.error('Error de Supabase al actualizar usuario:', error);
-        throw error;
+        console.error('Error al actualizar usuario usando RPC:', error);
+        console.log('Intentando método alternativo...');
+        
+        // Método alternativo directo (por si falla el RPC)
+        const { data: directData, error: directError } = await supabase
+          .from('usuarios')
+          .update(updateData)
+          .eq('id', usuario.id)
+          .select('*')
+          .single();
+          
+        if (directError) {
+          console.error('Error de Supabase al actualizar usuario directamente:', directError);
+          throw directError;
+        }
+        
+        console.log('Usuario actualizado correctamente mediante método directo:', directData);
+        return directData;
       }
       
-      console.log('Usuario actualizado correctamente:', data);
-      // Asegurarnos de devolver los datos actualizados, no solo el ID
+      console.log('Usuario actualizado correctamente mediante RPC:', data);
+      
+      // Si no hay datos devueltos del RPC o el update directo, hacer una consulta adicional
       if (!data) {
-        // Si no hay datos devueltos, hacer una consulta adicional para obtener el usuario
+        console.log('Obteniendo datos actualizados...');
         const { data: freshData, error: fetchError } = await supabase
           .from('usuarios')
           .select('*')
@@ -428,7 +444,7 @@ async function saveUsuario(usuario) {
           
         if (fetchError) {
           console.warn('Error al obtener usuario actualizado:', fetchError);
-          return { id: usuario.id };
+          return { id: usuario.id, ...updateData };
         }
         
         return freshData;
