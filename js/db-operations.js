@@ -357,16 +357,48 @@ async function fetchUsuarios() {
   try {
     const supabase = getClient();
     
-    const { data, error } = await supabase
-      .from('usuarios')
-      .select('*')
-      .order('id', { ascending: true });
+    // Intento principal usando el cliente estándar
+    try {
+      const { data, error } = await supabase
+        .from('usuarios')
+        .select('*')
+        .order('id', { ascending: true });
+        
+      if (!error && data) {
+        console.log('Usuarios obtenidos correctamente:', data.length);
+        return data;
+      }
       
-    if (error) throw error;
+      if (error) throw error;
+    } catch (primaryError) {
+      console.warn('Error en método principal para obtener usuarios:', primaryError);
+    }
     
-    return data || [];
+    // Método alternativo: REST API directa
+    try {
+      console.log('Intentando obtener usuarios mediante REST API...');
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/usuarios?select=*&order=id.asc`, {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Usuarios obtenidos mediante REST API:', data.length);
+        return data;
+      }
+    } catch (restError) {
+      console.error('Error al obtener usuarios mediante REST API:', restError);
+    }
+    
+    // Si todos los métodos fallan, devolver array vacío
+    console.error('No se pudieron obtener usuarios de Supabase');
+    return [];
   } catch (error) {
-    console.error('Error al obtener usuarios:', error);
+    console.error('Error general al obtener usuarios:', error);
     throw error;
   }
 }
@@ -403,18 +435,32 @@ async function saveUsuario(usuario) {
       
       console.log('Datos de actualización:', updateData);
       
-      // Usar el cliente con rol de servicio para eludir las políticas RLS
-      const { data, error } = await supabase
-        .rpc('admin_update_usuario', {
-          usuario_id: usuario.id,
-          usuario_data: updateData
-        });
+      // Probar múltiples enfoques en orden para garantizar que el update funcione
       
-      if (error) {
-        console.error('Error al actualizar usuario usando RPC:', error);
-        console.log('Intentando método alternativo...');
+      // Enfoque 1: Usar RPC (función de base de datos con permisos elevados)
+      try {
+        const { data, error } = await supabase
+          .rpc('admin_update_usuario', {
+            usuario_id: usuario.id,
+            usuario_data: updateData
+          });
+          
+        if (!error && data) {
+          console.log('Usuario actualizado correctamente mediante RPC:', data);
+          return data;
+        }
         
-        // Método alternativo directo (por si falla el RPC)
+        if (error) {
+          console.warn('Error al actualizar usuario usando RPC:', error);
+          console.log('Intentando método alternativo...');
+        }
+      } catch (rpcError) {
+        console.warn('Error en RPC:', rpcError);
+      }
+      
+      // Enfoque 2: Método directo con la API de Supabase
+      try {
+        console.log('Probando update directo a Supabase...');
         const { data: directData, error: directError } = await supabase
           .from('usuarios')
           .update(updateData)
@@ -422,35 +468,49 @@ async function saveUsuario(usuario) {
           .select('*')
           .single();
           
+        if (!directError && directData) {
+          console.log('Usuario actualizado correctamente mediante método directo:', directData);
+          return directData;
+        }
+        
         if (directError) {
-          console.error('Error de Supabase al actualizar usuario directamente:', directError);
-          throw directError;
+          console.warn('Error método directo:', directError);
         }
-        
-        console.log('Usuario actualizado correctamente mediante método directo:', directData);
-        return directData;
+      } catch (directUpdateError) {
+        console.warn('Error en update directo:', directUpdateError);
       }
       
-      console.log('Usuario actualizado correctamente mediante RPC:', data);
-      
-      // Si no hay datos devueltos del RPC o el update directo, hacer una consulta adicional
-      if (!data) {
-        console.log('Obteniendo datos actualizados...');
-        const { data: freshData, error: fetchError } = await supabase
-          .from('usuarios')
-          .select('*')
-          .eq('id', usuario.id)
-          .single();
-          
-        if (fetchError) {
-          console.warn('Error al obtener usuario actualizado:', fetchError);
-          return { id: usuario.id, ...updateData };
-        }
+      // Enfoque 3: REST API directa (último recurso)
+      try {
+        console.log('Probando update mediante REST API...');
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/usuarios?id=eq.${usuario.id}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify(updateData)
+        });
         
-        return freshData;
+        if (response.ok) {
+          const restData = await response.json();
+          console.log('Usuario actualizado correctamente mediante REST API:', restData);
+          if (restData && restData.length > 0) {
+            return restData[0];
+          }
+        }
+      } catch (restError) {
+        console.error('Error en REST API:', restError);
       }
       
-      return data;
+      // Si todos los métodos fallan, intentaremos un último método
+      console.warn('¡Todos los métodos de actualización fallaron! Intentando última alternativa...');
+        
+      // Lanzar error para que el sistema intente el enfoque offline
+      throw new Error('No se pudo actualizar el usuario mediante ningún método disponible');
+      }
     } else {
       // Preparar datos para inserción
       const insertData = {
