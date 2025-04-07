@@ -12,7 +12,17 @@ function initSupabase() {
     auth: {
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: false
+      detectSessionInUrl: false,
+      storageKey: 'fluxon_supabase_auth',
+      storage: window.localStorage
+    },
+    global: {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    },
+    realtime: {
+      enabled: true
     }
   };
   
@@ -30,5 +40,45 @@ function getSupabaseClient() {
   return supabaseClient;
 }
 
-// Hacer que la función esté disponible globalmente
+// Función para sincronizar usuario de Supabase con nuestro modelo de usuario
+async function sincronizarUsuarioSupabase(supabaseUser) {
+  try {
+    if (!supabaseUser) return null;
+    
+    const supabase = getSupabaseClient();
+    
+    // Extraer el username del email (si se usó el formato username@app.com)
+    const username = supabaseUser.email.split('@')[0];
+    
+    // Buscar el usuario en nuestra tabla
+    const { data: userData, error } = await supabase
+      .from('usuarios')
+      .select('*')
+      .eq('username', username)
+      .single();
+      
+    if (error) {
+      console.error('Error al sincronizar usuario:', error);
+      return null;
+    }
+    
+    if (userData && userData.activo) {
+      return {
+        id: userData.id,
+        nombre: userData.nombre,
+        apellido: userData.apellido,
+        username: userData.username,
+        rol: userData.rol
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error en sincronizarUsuarioSupabase:', error);
+    return null;
+  }
+}
+
+// Hacer que las funciones estén disponibles globalmente
 window.getSupabaseClient = getSupabaseClient;
+window.sincronizarUsuarioSupabase = sincronizarUsuarioSupabase;
