@@ -4,7 +4,7 @@ Este documento sirve como registro histórico del desarrollo de la aplicación F
 
 ## Estado actual del proyecto
 
-**Fecha última actualización: 08/04/2025**
+**Fecha última actualización: 09/04/2025**
 
 ### Resumen del proyecto
 Fluxon Logistics es una aplicación de gestión logística para seguimiento de pedidos, desde su creación hasta su entrega. Inicialmente desarrollada como una aplicación web local que utilizaba localStorage para demostración, ahora está siendo conectada a Supabase como backend. La aplicación ya ha sido desplegada en Vercel y está disponible online.
@@ -29,81 +29,85 @@ Fluxon Logistics es una aplicación de gestión logística para seguimiento de p
 
 ### Plan detallado para completar la integración con Supabase
 
+> **PRINCIPIO FUNDAMENTAL: UI-First Approach**
+> 
+> Todas las funcionalidades deben estar disponibles exclusivamente a través de la interfaz de usuario. Los usuarios finales **NUNCA** interactuarán directamente con Supabase. La única excepción será la creación inicial del usuario administrador. Supabase funciona exclusivamente como backend y almacén de datos, siendo completamente transparente para el usuario final.
+
 1. **Fase 1: Integración básica con Supabase - por módulos**
    
    a. **Módulo de Pedidos (js/modules/pedidos.js)**
-   - Migrar `savePedido()` para crear/actualizar pedidos en Supabase
-   - Conectar `addComment()` con tabla `comentarios_pedido` en Supabase
-   - Implementar `asignarConductor()` con persistencia en Supabase
-   - Actualizar `cambiarEstadoPedido()` para sincronizar con Supabase
-   - Integrar `generarNotificacionesCambioEstado()` con el sistema de notificaciones Supabase
+   - Migrar `savePedido()` para crear/actualizar pedidos en Supabase desde la UI, manteniendo la misma experiencia de usuario
+   - Conectar `addComment()` con tabla `comentarios_pedido` en Supabase sin cambios en la UI
+   - Implementar `asignarConductor()` con persistencia en Supabase desde la UI existente
+   - Actualizar `cambiarEstadoPedido()` para sincronizar con Supabase manteniendo la misma interacción visual
+   - Integrar `generarNotificacionesCambioEstado()` con el sistema de notificaciones Supabase garantizando funcionamiento automático
    
    b. **Módulo de Usuarios (js/modules/usuarios.js)** ✅
-   - ✅ Migrar `saveUsuario()` para crear/actualizar usuarios en Supabase Auth y tabla usuarios
-   - ✅ Conectar `toggleUsuarioStatus()` para activar/desactivar usuarios en Supabase
-   - ✅ Actualizar `updateUsuariosTable()` para cargar datos desde Supabase
-   - ✅ Implementar manejo offline con sistema de sincronización
+   - ✅ Migrar `saveUsuario()` para crear/actualizar usuarios en Supabase Auth y tabla usuarios desde la interfaz existente
+   - ✅ Conectar `toggleUsuarioStatus()` para activar/desactivar usuarios en Supabase con retroalimentación visual inmediata
+   - ✅ Actualizar `updateUsuariosTable()` para cargar datos desde Supabase manteniendo la misma presentación
+   - ✅ Implementar manejo offline con sistema de sincronización transparente para el usuario
    
    c. **Módulo de Productos (js/modules/productos.js)** ✅
-   - ✅ Actualizar `loadProductos()` para cargar datos desde Supabase
-   - ✅ Migrar `saveProducto()` para crear/actualizar productos en Supabase
-   - ✅ Migrar `deleteProducto()` para eliminar productos en Supabase
-   - ✅ Actualizar `updateProductosTable()` con manejo de estados de sincronización
-   - ✅ Implementar soporte para operaciones offline y sincronización
+   - ✅ Actualizar `loadProductos()` para cargar datos desde Supabase sin cambios en la experiencia de usuario
+   - ✅ Migrar `saveProducto()` para crear/actualizar productos en Supabase desde la UI con indicadores de estado
+   - ✅ Migrar `deleteProducto()` para eliminar productos en Supabase desde la interfaz actual
+   - ✅ Actualizar `updateProductosTable()` con manejo de estados de sincronización y retroalimentación visual
+   - ✅ Implementar soporte para operaciones offline y sincronización automática transparente
    
    d. **Módulo de Informes (js/modules/informes.js)**
-   - Actualizar `generarInforme()` para consultar datos desde Supabase
-   - Migrar `imprimirInforme()` y `descargarInformeExcel()` para usar datos de Supabase
-   - Considerar la creación de una tabla para almacenar informes generados
+   - Actualizar `generarInforme()` para consultar datos desde Supabase sin cambios en la UI
+   - Migrar `imprimirInforme()` y `descargarInformeExcel()` para usar datos de Supabase manteniendo la misma experiencia
+   - Considerar la creación de una tabla para almacenar informes generados con acceso exclusivo desde la interfaz
    
    e. **App Principal (js/app.js)**
-   - Reemplazar `loadDummyData()` con carga desde Supabase
-   - Implementar `generarNumeroPedido()` usando secuencias de Supabase
-   - Actualizar `updateDashboard()` para obtener estadísticas desde Supabase
-   - Eliminar referencias redundantes a localStorage
+   - Reemplazar `loadDummyData()` con carga desde Supabase manteniendo transiciones fluidas
+   - Implementar `generarNumeroPedido()` usando secuencias de Supabase de forma transparente
+   - Actualizar `updateDashboard()` para obtener estadísticas desde Supabase con indicadores de carga
+   - Eliminar referencias redundantes a localStorage sin impacto en la experiencia de usuario
 
 2. **Fase 2: Mejoras de arquitectura**
    - ✅ Crear un archivo `db-operations.js` con funciones CRUD base para todas las entidades
-   - Implementar manejo de errores y reintentos para operaciones de red
-   - Desarrollar sistema de caché para funcionamiento offline
-   - Optimizar consultas a Supabase para reducir uso de recursos
+   - Implementar manejo de errores y reintentos para operaciones de red con notificaciones visuales claras
+   - Desarrollar sistema de caché para funcionamiento offline que funcione automáticamente sin intervención del usuario
+   - Optimizar consultas a Supabase para reducir uso de recursos y garantizar respuesta rápida en la UI
 
 3. **Fase 3: Testing y validación**
-   - Probar inicio de sesión con usuarios de Supabase
-   - Verificar CRUD en todas las tablas
-   - Comprobar que las políticas RLS funcionan correctamente
-   - Probar el funcionamiento offline con caché local
-   - Realizar pruebas de carga y rendimiento con datos reales
+   - Probar inicio de sesión con usuarios de Supabase desde la UI asegurando una experiencia idéntica
+   - Verificar CRUD en todas las tablas desde las interfaces existentes (sin acceso directo a Supabase)
+   - Comprobar que las políticas RLS funcionan correctamente de forma transparente
+   - Probar el funcionamiento offline con caché local y sincronización automática
+   - Realizar pruebas de carga y rendimiento con datos reales enfocando en la respuesta de la UI
 
 4. **Fase 4: Implementación de sincronización offline y manejo de errores**
-   - Crear mecanismo de cola para operaciones en estado offline
-   - Implementar sistema de resolución de conflictos
-   - Desarrollar indicadores visuales de conectividad
-   - Añadir reintentos automáticos para operaciones fallidas
+   - Crear mecanismo de cola para operaciones en estado offline con retroalimentación visual clara
+   - Implementar sistema de resolución de conflictos que priorice cambios locales
+   - Desarrollar indicadores visuales de conectividad y estado de sincronización
+   - Añadir reintentos automáticos para operaciones fallidas con notificaciones apropiadas
 
 5. **Fase 5: Mejoras adicionales para producción**
-   - Implementar sistema de suscripciones en tiempo real con Supabase Realtime
-   - Añadir compresión de datos para reducir uso de ancho de banda
-   - Optimizar carga inicial con datos parciales y carga progresiva
-   - Implementar sistema de logging para depuración en producción
+   - Implementar sistema de suscripciones en tiempo real con Supabase Realtime reflejando cambios instantáneos en la UI
+   - Añadir compresión de datos para reducir uso de ancho de banda sin afectar la experiencia
+   - Optimizar carga inicial con datos parciales y carga progresiva mostrando indicadores apropiados
+   - Implementar sistema de logging para depuración en producción sin exposición al usuario final
 
 6. **Fase 6: Despliegue y monitoreo**
-   - Actualizar la versión desplegada en Vercel para usar Supabase
-   - Configurar variables de entorno en Vercel para las claves de Supabase
-   - Implementar monitoreo de errores en producción
-   - Configurar alertas para problemas críticos
+   - Actualizar la versión desplegada en Vercel para usar Supabase sin interrupciones de servicio
+   - Configurar variables de entorno en Vercel para las claves de Supabase manteniendo seguridad
+   - Implementar monitoreo de errores en producción con sistema de reportes automáticos
+   - Configurar alertas para problemas críticos con notificaciones a administradores
 
 7. **Fase 7: Seguridad y compliance**
-   - Revisar y reforzar políticas RLS para todos los casos de uso
-   - Implementar sistema de auditoría para acciones críticas
-   - Asegurar cumplimiento GDPR/protección de datos personales
-   - Realizar pruebas de penetración y seguridad
+   - Revisar y reforzar políticas RLS para todos los casos de uso garantizando acceso solo desde la UI
+   - Implementar sistema de auditoría para acciones críticas con logs detallados no visibles al usuario
+   - Asegurar cumplimiento GDPR/protección de datos personales en todos los procesos
+   - Realizar pruebas de penetración y seguridad enfocadas en la interacción UI-API
 
 8. **Fase 8: Migración de datos y lanzamiento**
-   - Desarrollar scripts de migración para datos históricos
-   - Establecer plan de rollback en caso de problemas
-   - Implementar estrategia de lanzamiento gradual por usuarios
-   - Preparar documentación y guías para usuarios finales
+   - Desarrollar scripts de migración para datos históricos ejecutables desde la UI de administración
+   - Establecer plan de rollback en caso de problemas con respaldo automático
+   - Implementar estrategia de lanzamiento gradual por usuarios con indicadores de progreso
+   - Preparar documentación y guías para usuarios finales enfocadas en la interfaz de usuario
 
 ## Roles de usuario y funcionalidades
 
@@ -170,36 +174,53 @@ Consultar el [README.md](./README.md) para información detallada sobre:
 - Creación de estilos CSS para badges e indicadores de sincronización
 - Manejo de productos temporales (creados offline) y marcados para eliminar
 
+### Sesión 8: Actualización del plan de desarrollo con enfoque UI-First (09/04/2025)
+- Refinamiento del plan de desarrollo con enfoque UI-First como principio fundamental
+- Aclaración de que todas las operaciones deben realizarse exclusivamente desde la interfaz de usuario
+- Énfasis en que los usuarios finales nunca interactuarán directamente con Supabase
+- Adición de requisitos de retroalimentación visual para todas las operaciones
+- Especificación de transparencia en la sincronización y operaciones offline
+- Clarificación de que Supabase funcionará solo como backend y almacén de datos
+- Documentación del flujo de creación del usuario administrador como única excepción
+
 ## Notas técnicas importantes
 
+### Enfoque UI-First
+- **Principio fundamental**: Todas las interacciones con la aplicación DEBEN realizarse a través de la interfaz de usuario
+- **Transparencia total**: El usuario nunca interactúa directamente con Supabase
+- **Única excepción**: Creación inicial del usuario administrador
+- **Funcionamiento offline**: La app debe funcionar sin conexión y sincronizar automáticamente
+- **Retroalimentación visual**: Todas las operaciones deben tener indicadores claros de estado
+
 ### Arquitectura de la aplicación
-- Frontend: HTML5, CSS3, JavaScript vanilla
-- Backend: Supabase (PostgreSQL, Auth)
-- Hosting: Vercel
-- Almacenamiento: Supabase para producción, localStorage como fallback
+- Frontend: HTML5, CSS3, JavaScript vanilla (interfaz completa para todas las operaciones)
+- Backend: Supabase (PostgreSQL, Auth) como almacén transparente de datos
+- Hosting: Vercel para despliegue continuo
+- Almacenamiento: Supabase para producción, localStorage como respaldo automático para offline
 
 ### Sistema de autenticación
-- Formato de email en Supabase: `username@app.com`
-- Roles de usuario: maestro, vendedor, bodega, conductor, tesorería
-- Método principal: Supabase Auth
-- Método de respaldo: Autenticación directa contra tabla usuarios
+- Formato de email en Supabase: `username@app.com` (generado automáticamente desde la UI)
+- Roles de usuario: maestro, vendedor, bodega, conductor, tesorería (gestionables desde la UI)
+- Método principal: Supabase Auth integrado en la interfaz existente
+- Método de respaldo: Autenticación directa contra tabla usuarios (transparente para el usuario)
 
 ### Estructura de la base de datos
-- `usuarios`: Almacena información de los usuarios (✅ conectado)
-- `productos`: Catálogo de productos (✅ conectado)
-- `pedidos`: Información principal de pedidos (pendiente de conectar)
-- `detalles_pedido`: Productos en cada pedido (pendiente de conectar)
-- `historial_pedidos`: Registro de cambios de estado (pendiente de conectar)
-- `notificaciones`: Sistema de notificaciones a usuarios (✅ conectado)
-- `preferencias_usuario`: Almacena configuraciones específicas de cada usuario (✅ conectado)
-- `comentarios_pedido`: Comentarios asociados a pedidos (pendiente de crear y conectar)
+- `usuarios`: Almacena información de los usuarios (✅ conectado, accesible solo desde UI)
+- `productos`: Catálogo de productos (✅ conectado, accesible solo desde UI)
+- `pedidos`: Información principal de pedidos (pendiente de conectar, acceso exclusivo desde UI)
+- `detalles_pedido`: Productos en cada pedido (pendiente de conectar, acceso exclusivo desde UI)
+- `historial_pedidos`: Registro de cambios de estado (pendiente de conectar, acceso exclusivo desde UI)
+- `notificaciones`: Sistema de notificaciones a usuarios (✅ conectado, acceso exclusivo desde UI)
+- `preferencias_usuario`: Almacena configuraciones específicas de cada usuario (✅ conectado, acceso exclusivo desde UI)
+- `comentarios_pedido`: Comentarios asociados a pedidos (pendiente de crear y conectar, acceso exclusivo desde UI)
 
 ### Row Level Security (RLS)
-- Todas las tablas tienen RLS habilitado
+- Todas las tablas tienen RLS habilitado para seguridad en backend
 - Políticas básicas para:
-  - SELECT: Permitir lectura a usuarios autenticados
-  - INSERT: Controlar quién puede crear registros
-  - UPDATE: Controlar quién puede modificar registros
+  - SELECT: Permitir lectura a usuarios autenticados a través de la interfaz
+  - INSERT: Controlar quién puede crear registros desde la UI según su rol
+  - UPDATE: Controlar quién puede modificar registros desde la UI según su rol
+- Toda interacción con RLS debe ser transparente y manejada automáticamente
 
 ## Credenciales de prueba
 - **Usuario Maestro**: admin / admin123
