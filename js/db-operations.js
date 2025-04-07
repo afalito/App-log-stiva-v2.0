@@ -375,63 +375,106 @@ async function fetchUsuarios() {
 async function saveUsuario(usuario) {
   try {
     const supabase = getClient();
+    console.log('Guardando usuario en Supabase:', usuario);
+    
+    // Verificar si la función createOrUpdateSupabaseAuthUser existe
+    const authUpdateAvailable = typeof createOrUpdateSupabaseAuthUser === 'function';
+    if (!authUpdateAvailable) {
+      console.warn('La función createOrUpdateSupabaseAuthUser no está disponible');
+    }
     
     if (usuario.id) {
+      // Preparar los datos para actualizar
+      const updateData = {
+        nombre: usuario.nombre,
+        apellido: usuario.apellido,
+        rol: usuario.rol,
+        updated_at: new Date().toISOString()
+      };
+      
+      // Solo incluir username si se proporciona
+      if (usuario.username) {
+        updateData.username = usuario.username;
+      }
+      
+      // Solo incluir password si se proporciona
+      if (usuario.password) {
+        updateData.password = usuario.password;
+      }
+      
+      // Solo incluir activo si se proporciona
+      if (usuario.activo !== undefined) {
+        updateData.activo = usuario.activo;
+      }
+      
+      console.log('Datos de actualización:', updateData);
+      
       // Actualizar usuario existente
       const { data, error } = await supabase
         .from('usuarios')
-        .update({
-          nombre: usuario.nombre,
-          apellido: usuario.apellido,
-          username: usuario.username,
-          password: usuario.password, // En producción, considerar hash
-          rol: usuario.rol,
-          activo: usuario.activo,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', usuario.id);
-        
-      if (error) throw error;
+        .update(updateData)
+        .eq('id', usuario.id)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error de Supabase al actualizar usuario:', error);
+        throw error;
+      }
+      
+      console.log('Usuario actualizado correctamente:', data);
       
       // Si se cambió la contraseña, actualizar en Auth
-      if (usuario.password) {
+      if (usuario.password && authUpdateAvailable) {
         try {
           // Intentar actualizar en Supabase Auth
-          await createOrUpdateSupabaseAuthUser(usuario.username, usuario.password);
+          await createOrUpdateSupabaseAuthUser(usuario.username || data.username, usuario.password);
         } catch (authError) {
           console.warn('No se pudo actualizar usuario en Auth:', authError);
         }
       }
       
-      return { id: usuario.id };
+      return data || { id: usuario.id };
     } else {
+      // Preparar datos para inserción
+      const insertData = {
+        nombre: usuario.nombre,
+        apellido: usuario.apellido,
+        username: usuario.username,
+        password: usuario.password,
+        rol: usuario.rol,
+        activo: usuario.activo !== undefined ? usuario.activo : true
+      };
+      
+      console.log('Datos para inserción:', insertData);
+      
       // Crear nuevo usuario
       const { data, error } = await supabase
         .from('usuarios')
-        .insert({
-          nombre: usuario.nombre,
-          apellido: usuario.apellido,
-          username: usuario.username,
-          password: usuario.password, // En producción, considerar hash
-          rol: usuario.rol,
-          activo: usuario.activo
-        })
-        .select('id')
+        .insert(insertData)
+        .select()
         .single();
-        
-      if (error) throw error;
+      
+      if (error) {
+        console.error('Error de Supabase al crear usuario:', error);
+        throw error;
+      }
+      
+      console.log('Usuario creado correctamente:', data);
       
       // Intentar crear en Supabase Auth
-      try {
-        await createOrUpdateSupabaseAuthUser(usuario.username, usuario.password);
-      } catch (authError) {
-        console.warn('No se pudo crear usuario en Auth:', authError);
+      if (authUpdateAvailable) {
+        try {
+          await createOrUpdateSupabaseAuthUser(usuario.username, usuario.password);
+        } catch (authError) {
+          console.warn('No se pudo crear usuario en Auth:', authError);
+        }
       }
       
       return data;
     }
   } catch (error) {
-    console.error('Error al guardar usuario:', error);
+    console.error('Error general al guardar usuario:', error);
     throw error;
   }
 }
@@ -440,20 +483,55 @@ async function saveUsuario(usuario) {
 async function toggleUsuarioStatus(usuarioId, nuevoEstado) {
   try {
     const supabase = getClient();
+    console.log(`Cambiando estado de usuario ${usuarioId} a ${nuevoEstado ? 'activo' : 'inactivo'}`);
     
-    const { error } = await supabase
+    // Asegurarnos de que el usuarioId es un número
+    const id = parseInt(usuarioId);
+    if (isNaN(id)) {
+      throw new Error(`ID de usuario inválido: ${usuarioId}`);
+    }
+    
+    // Verificar que el usuario existe antes de actualizar
+    const { data: user, error: checkError } = await supabase
+      .from('usuarios')
+      .select('id, nombre, activo')
+      .eq('id', id)
+      .single();
+      
+    if (checkError) {
+      console.error('Error al verificar usuario:', checkError);
+      throw checkError;
+    }
+    
+    if (!user) {
+      throw new Error(`Usuario con ID ${id} no encontrado`);
+    }
+    
+    console.log(`Usuario encontrado: ${user.nombre}, estado actual: ${user.activo}`);
+    
+    // Actualizar el estado
+    const { data, error } = await supabase
       .from('usuarios')
       .update({
         activo: nuevoEstado,
         updated_at: new Date().toISOString()
       })
-      .eq('id', usuarioId);
+      .eq('id', id)
+      .select();
       
-    if (error) throw error;
+    if (error) {
+      console.error('Error al actualizar estado de usuario:', error);
+      throw error;
+    }
     
-    return { success: true };
+    console.log('Estado de usuario actualizado correctamente:', data);
+    
+    return { 
+      success: true, 
+      data: data && data.length > 0 ? data[0] : null 
+    };
   } catch (error) {
-    console.error('Error al cambiar estado del usuario:', error);
+    console.error('Error general al cambiar estado del usuario:', error);
     throw error;
   }
 }

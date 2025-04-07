@@ -38,10 +38,16 @@ async function updateUsuariosTable() {
     const usuariosList = document.getElementById('usuarios-list');
     if (!usuariosList) return;
     
+    // Indicador de estado de conexión
+    const connectionStatus = navigator.onLine ? 
+        '<span class="connection-status status-online" title="Conectado"><i class="fas fa-wifi"></i></span>' : 
+        '<span class="connection-status status-offline" title="Sin conexión"><i class="fas fa-wifi-slash"></i></span>';
+    
     // Mostrar un indicador de carga
     usuariosList.innerHTML = `
         <tr>
             <td colspan="5" style="text-align: center; padding: 20px;">
+                ${connectionStatus}
                 <div class="spinner-small"></div>
                 <p>Cargando usuarios...</p>
             </td>
@@ -53,7 +59,9 @@ async function updateUsuariosTable() {
         let usuarios = [];
         
         try {
+            // Usar la función de dbOperations
             usuarios = await dbOperations.fetchUsuarios();
+            console.log('Usuarios cargados desde Supabase:', usuarios);
             
             // Actualizar la caché local
             app.usuarios = usuarios;
@@ -68,7 +76,7 @@ async function updateUsuariosTable() {
         }
         
         // Aplicar filtros
-        let filteredUsuarios = usuarios;
+        let filteredUsuarios = usuarios || [];
         
         // Filtrar por rol si está seleccionado
         const filterRoles = document.getElementById('filter-roles');
@@ -81,14 +89,14 @@ async function updateUsuariosTable() {
         if (searchUsuarios && searchUsuarios.value) {
             const searchTerm = searchUsuarios.value.toLowerCase();
             filteredUsuarios = filteredUsuarios.filter(u => 
-                u.nombre.toLowerCase().includes(searchTerm) ||
-                u.apellido.toLowerCase().includes(searchTerm) ||
-                u.username.toLowerCase().includes(searchTerm)
+                (u.nombre && u.nombre.toLowerCase().includes(searchTerm)) ||
+                (u.apellido && u.apellido.toLowerCase().includes(searchTerm)) ||
+                (u.username && u.username.toLowerCase().includes(searchTerm))
             );
         }
         
         // Mostrar mensaje si no hay usuarios
-        if (filteredUsuarios.length === 0) {
+        if (!filteredUsuarios || filteredUsuarios.length === 0) {
             usuariosList.innerHTML = `
                 <tr class="empty-state">
                     <td colspan="5">
@@ -103,28 +111,68 @@ async function updateUsuariosTable() {
         }
         
         // Generar HTML para cada usuario
-        const usuariosHTML = filteredUsuarios.map(usuario => `
-            <tr>
-                <td>${usuario.nombre} ${usuario.apellido}</td>
-                <td>${usuario.username}</td>
-                <td>${getRoleName(usuario.rol)}</td>
-                <td>
-                    <span class="status-badge ${usuario.activo ? 'status-finalizado' : 'status-anulado'}">
-                        ${usuario.activo ? 'Activo' : 'Inactivo'}
-                    </span>
-                </td>
-                <td>
-                    <button class="btn btn-small" onclick="editUsuario(${usuario.id})">
-                        <i class="fas fa-edit"></i> Editar
-                    </button>
-                    <button class="btn btn-small ${usuario.activo ? 'btn-danger' : 'btn-success'}" onclick="toggleUsuarioStatus(${usuario.id})">
-                        <i class="fas fa-${usuario.activo ? 'ban' : 'check'}"></i> ${usuario.activo ? 'Desactivar' : 'Activar'}
-                    </button>
-                </td>
-            </tr>
-        `).join('');
+        const usuariosHTML = filteredUsuarios.map(usuario => {
+            // Comprobar si el usuario tiene la propiedad activo
+            const estaActivo = usuario.activo !== undefined ? usuario.activo : true;
+            
+            // Determinar si el usuario es temporal (creado offline)
+            const isTemporal = usuario._tempId === true;
+            
+            // Aplicar estilos especiales para usuarios temporales
+            const rowClass = isTemporal ? 'class="usuario-temporal"' : '';
+            const statusIndicator = isTemporal ? 
+                '<span class="sync-pending-badge" title="Pendiente de sincronización"><i class="fas fa-clock"></i></span>' : 
+                '';
+                
+            return `
+                <tr ${rowClass}>
+                    <td>
+                        ${statusIndicator}
+                        ${usuario.nombre || ''} ${usuario.apellido || ''}
+                    </td>
+                    <td>${usuario.username || ''}</td>
+                    <td>${getRoleName(usuario.rol || 'usuario')}</td>
+                    <td>
+                        <span class="status-badge ${estaActivo ? 'status-finalizado' : 'status-anulado'}">
+                            ${estaActivo ? 'Activo' : 'Inactivo'}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-small" onclick="editUsuario(${usuario.id})">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
+                        <button class="btn btn-small ${estaActivo ? 'btn-danger' : 'btn-success'}" onclick="toggleUsuarioStatus(${usuario.id})">
+                            <i class="fas fa-${estaActivo ? 'ban' : 'check'}"></i> ${estaActivo ? 'Desactivar' : 'Activar'}
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
         
         usuariosList.innerHTML = usuariosHTML;
+        
+        // Indicador del estado de la conexión en la tabla
+        const pendingCount = syncSystem ? syncSystem.getPendingCount() : 0;
+        
+        if (!navigator.onLine || pendingCount > 0) {
+            // Mostrar indicador del estado de sincronización
+            const syncFooter = document.createElement('tr');
+            syncFooter.className = 'sync-status-footer';
+            syncFooter.innerHTML = `
+                <td colspan="5">
+                    <div class="sync-status ${navigator.onLine ? 'status-pending' : 'status-offline'}">
+                        <i class="fas fa-${navigator.onLine ? 'sync' : 'wifi-slash'}"></i>
+                        ${navigator.onLine 
+                            ? `${pendingCount} cambios pendientes de sincronizar` 
+                            : 'Sin conexión. Los cambios se sincronizarán automáticamente cuando se restablezca la conexión.'}
+                        ${navigator.onLine && pendingCount > 0 
+                            ? '<button class="btn btn-small" onclick="syncSystem.forceSync()">Sincronizar ahora</button>' 
+                            : ''}
+                    </div>
+                </td>
+            `;
+            usuariosList.appendChild(syncFooter);
+        }
     } catch (error) {
         console.error('Error al actualizar tabla de usuarios:', error);
         usuariosList.innerHTML = `
@@ -132,7 +180,7 @@ async function updateUsuariosTable() {
                 <td colspan="5">
                     <div class="empty-message">
                         <i class="fas fa-exclamation-triangle"></i>
-                        <p>Error al cargar usuarios. Intente nuevamente.</p>
+                        <p>Error al cargar usuarios: ${error.message}. Intente nuevamente.</p>
                     </div>
                 </td>
             </tr>
@@ -142,6 +190,8 @@ async function updateUsuariosTable() {
 
 // Abrir modal de usuario (nuevo o edición)
 function openUsuarioModal(usuarioId = null) {
+    console.log('Abriendo modal de usuario:', usuarioId);
+    
     // Reiniciar formulario
     const usuarioForm = document.getElementById('usuario-form');
     if (usuarioForm) {
@@ -155,35 +205,63 @@ function openUsuarioModal(usuarioId = null) {
             usuarioModalTitle.textContent = 'Editar Usuario';
             usuarioModalTitle.setAttribute('data-usuario-id', usuarioId);
             
-            // Cargar datos del usuario
-            const usuario = app.usuarios.find(u => u.id === usuarioId);
+            // Cargar datos del usuario desde caché local
+            const usuario = app.usuarios.find(u => u.id == usuarioId); // Usar == para comparar
             if (usuario) {
-                document.getElementById('usuario-nombre').value = usuario.nombre;
-                document.getElementById('usuario-apellido').value = usuario.apellido;
-                document.getElementById('usuario-username').value = usuario.username;
-                document.getElementById('usuario-rol').value = usuario.rol;
+                console.log('Cargando datos de usuario para edición:', usuario);
+                
+                // Cargar los valores en el formulario
+                document.getElementById('usuario-nombre').value = usuario.nombre || '';
+                document.getElementById('usuario-apellido').value = usuario.apellido || '';
+                document.getElementById('usuario-username').value = usuario.username || '';
+                document.getElementById('usuario-rol').value = usuario.rol || '';
                 
                 // En edición, no requerimos contraseña a menos que se vaya a cambiar
-                document.getElementById('usuario-password').required = false;
-                document.getElementById('usuario-password-confirm').required = false;
+                const passwordField = document.getElementById('usuario-password');
+                const confirmField = document.getElementById('usuario-password-confirm');
+                
+                if (passwordField) passwordField.required = false;
+                if (confirmField) confirmField.required = false;
+                
+                // Placeholders para indicar que es opcional
+                if (passwordField) passwordField.placeholder = "Dejar en blanco para mantener";
+                if (confirmField) confirmField.placeholder = "Dejar en blanco para mantener";
                 
                 // Deshabilitar el campo de usuario si es el usuario actual
-                if (usuario.id === app.currentUser.id) {
-                    document.getElementById('usuario-rol').disabled = true;
-                } else {
-                    document.getElementById('usuario-rol').disabled = false;
+                const rolField = document.getElementById('usuario-rol');
+                if (rolField) {
+                    if (usuario.id == app.currentUser.id) {
+                        rolField.disabled = true;
+                    } else {
+                        rolField.disabled = false;
+                    }
                 }
+            } else {
+                console.error('Usuario no encontrado en caché local:', usuarioId);
+                showToast('Error: Usuario no encontrado', 'error');
             }
         } else {
+            // Nuevo usuario
             usuarioModalTitle.textContent = 'Nuevo Usuario';
             usuarioModalTitle.removeAttribute('data-usuario-id');
             
             // En creación, requerimos contraseña
-            document.getElementById('usuario-password').required = true;
-            document.getElementById('usuario-password-confirm').required = true;
+            const passwordField = document.getElementById('usuario-password');
+            const confirmField = document.getElementById('usuario-password-confirm');
+            
+            if (passwordField) {
+                passwordField.required = true;
+                passwordField.placeholder = "Contraseña (obligatoria)";
+            }
+            
+            if (confirmField) {
+                confirmField.required = true;
+                confirmField.placeholder = "Confirmar contraseña";
+            }
             
             // Habilitar campo de rol
-            document.getElementById('usuario-rol').disabled = false;
+            const rolField = document.getElementById('usuario-rol');
+            if (rolField) rolField.disabled = false;
         }
     }
     
@@ -360,8 +438,42 @@ async function saveUsuario() {
 }
 
 // Editar usuario
-function editUsuario(usuarioId) {
-    openUsuarioModal(usuarioId);
+async function editUsuario(usuarioId) {
+    try {
+        const appLoader = document.getElementById('app-loader');
+        if (appLoader) appLoader.style.display = 'flex';
+        
+        // Primero obtenemos los datos actualizados del usuario desde Supabase
+        const supabase = getSupabaseClient();
+        const { data: usuario, error } = await supabase
+            .from('usuarios')
+            .select('*')
+            .eq('id', usuarioId)
+            .single();
+            
+        if (error) {
+            throw error;
+        }
+        
+        if (!usuario) {
+            throw new Error(`Usuario con ID ${usuarioId} no encontrado`);
+        }
+        
+        // Actualizar el cache local
+        const index = app.usuarios.findIndex(u => u.id === usuarioId);
+        if (index !== -1) {
+            app.usuarios[index] = usuario;
+        }
+        
+        // Ahora abrimos el modal con los datos actualizados
+        openUsuarioModal(usuarioId);
+    } catch (error) {
+        console.error('Error al cargar usuario para edición:', error);
+        showToast('Error al cargar usuario: ' + error.message, 'error');
+    } finally {
+        const appLoader = document.getElementById('app-loader');
+        if (appLoader) appLoader.style.display = 'none';
+    }
 }
 
 // Activar/Desactivar usuario

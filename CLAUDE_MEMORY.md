@@ -44,12 +44,19 @@ Fluxon Logistics es una aplicación de gestión logística para seguimiento de p
    - ✅ Actualizar `updateUsuariosTable()` para cargar datos desde Supabase
    - ✅ Implementar manejo offline con sistema de sincronización
    
-   c. **Módulo de Informes (js/modules/informes.js)**
+   c. **Módulo de Productos (js/modules/productos.js)** ✅
+   - ✅ Actualizar `loadProductos()` para cargar datos desde Supabase
+   - ✅ Migrar `saveProducto()` para crear/actualizar productos en Supabase
+   - ✅ Migrar `deleteProducto()` para eliminar productos en Supabase
+   - ✅ Actualizar `updateProductosTable()` con manejo de estados de sincronización
+   - ✅ Implementar soporte para operaciones offline y sincronización
+   
+   d. **Módulo de Informes (js/modules/informes.js)**
    - Actualizar `generarInforme()` para consultar datos desde Supabase
    - Migrar `imprimirInforme()` y `descargarInformeExcel()` para usar datos de Supabase
    - Considerar la creación de una tabla para almacenar informes generados
    
-   d. **App Principal (js/app.js)**
+   e. **App Principal (js/app.js)**
    - Reemplazar `loadDummyData()` con carga desde Supabase
    - Implementar `generarNumeroPedido()` usando secuencias de Supabase
    - Actualizar `updateDashboard()` para obtener estadísticas desde Supabase
@@ -154,6 +161,15 @@ Consultar el [README.md](./README.md) para información detallada sobre:
 - Manejo de conexión intermitente y sincronización en modo offline
 - Integración con el sistema de autenticación existente
 
+### Sesión 7: Integración del módulo de productos con Supabase (08/04/2025)
+- Migración del módulo de productos a Supabase
+- Actualización de loadProductos() para usar dbOperations centralizado
+- Mejora de saveProducto() para soportar modo offline
+- Implementación de deleteProducto() con verificaciones de integridad
+- Adición de indicadores de sincronización y estado de conexión
+- Creación de estilos CSS para badges e indicadores de sincronización
+- Manejo de productos temporales (creados offline) y marcados para eliminar
+
 ## Notas técnicas importantes
 
 ### Arquitectura de la aplicación
@@ -170,7 +186,7 @@ Consultar el [README.md](./README.md) para información detallada sobre:
 
 ### Estructura de la base de datos
 - `usuarios`: Almacena información de los usuarios (✅ conectado)
-- `productos`: Catálogo de productos (pendiente de conectar)
+- `productos`: Catálogo de productos (✅ conectado)
 - `pedidos`: Información principal de pedidos (pendiente de conectar)
 - `detalles_pedido`: Productos en cada pedido (pendiente de conectar)
 - `historial_pedidos`: Registro de cambios de estado (pendiente de conectar)
