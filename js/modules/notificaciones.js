@@ -34,9 +34,16 @@ function setupNotificacionesEvents() {
 }
 
 // Actualizar lista de notificaciones
-function updateNotificacionesList() {
+async function updateNotificacionesList() {
     const notificacionesList = document.getElementById('notificaciones-list');
     if (!notificacionesList) return;
+    
+    // Primero intentamos cargar las notificaciones recientes desde Supabase
+    try {
+        await cargarNotificacionesDesdeSupabase();
+    } catch (error) {
+        console.error('Error al cargar notificaciones desde Supabase:', error);
+    }
     
     // Filtrar notificaciones para el usuario actual
     const notificacionesUsuario = app.notificaciones.filter(n => 
@@ -75,8 +82,48 @@ function updateNotificacionesList() {
     notificacionesList.innerHTML = notificacionesHTML;
 }
 
+// Cargar notificaciones desde Supabase
+async function cargarNotificacionesDesdeSupabase() {
+    if (!app.currentUser) return;
+    
+    try {
+        const supabase = getSupabaseClient();
+        
+        // Consultar notificaciones del usuario
+        const { data, error } = await supabase
+            .from('notificaciones')
+            .select('*')
+            .eq('usuario_id', app.currentUser.id)
+            .order('fecha', { ascending: false });
+        
+        if (error) throw error;
+        
+        if (data) {
+            // Transformar a formato compatible con la aplicación
+            app.notificaciones = data.map(n => ({
+                id: n.id,
+                usuarioId: n.usuario_id,
+                texto: n.texto,
+                referencia: n.referencia,
+                referenciaId: n.referencia_id,
+                tipo: n.tipo,
+                leida: n.leida,
+                fecha: n.fecha
+            }));
+            
+            // Actualizar contador de notificaciones
+            actualizarContadorNotificaciones();
+            
+            console.log(`${data.length} notificaciones cargadas desde Supabase`);
+        }
+    } catch (error) {
+        console.error('Error al cargar notificaciones:', error);
+        throw error;
+    }
+}
+
 // Abrir notificación
-function abrirNotificacion(notificacionId) {
+async function abrirNotificacion(notificacionId) {
     // Buscar notificación
     const notificacion = app.notificaciones.find(n => n.id === notificacionId);
     
@@ -85,8 +132,24 @@ function abrirNotificacion(notificacionId) {
         return;
     }
     
-    // Marcar como leída
+    // Marcar como leída en local y en Supabase
     notificacion.leida = true;
+    
+    try {
+        const supabase = getSupabaseClient();
+        // Actualizar en Supabase
+        const { error } = await supabase
+            .from('notificaciones')
+            .update({ leida: true })
+            .eq('id', notificacionId);
+        
+        if (error) {
+            console.error('Error al actualizar notificación en Supabase:', error);
+            showToast('Error al actualizar notificación', 'error');
+        }
+    } catch (error) {
+        console.error('Error al marcar notificación como leída:', error);
+    }
     
     // Actualizar contador de notificaciones
     actualizarContadorNotificaciones();
@@ -107,7 +170,7 @@ function abrirNotificacion(notificacionId) {
 }
 
 // Marcar todas las notificaciones como leídas
-function marcarTodasComoLeidas() {
+async function marcarTodasComoLeidas() {
     // Buscar notificaciones no leídas del usuario actual
     const notificacionesPendientes = app.notificaciones.filter(n => 
         n.usuarioId === app.currentUser.id && !n.leida
@@ -118,10 +181,30 @@ function marcarTodasComoLeidas() {
         return;
     }
     
-    // Marcar todas como leídas
+    // Marcar todas como leídas localmente
     notificacionesPendientes.forEach(n => {
         n.leida = true;
     });
+    
+    try {
+        const supabase = getSupabaseClient();
+        
+        // Obtener los IDs de las notificaciones pendientes
+        const ids = notificacionesPendientes.map(n => n.id);
+        
+        // Actualizar todas en Supabase
+        const { error } = await supabase
+            .from('notificaciones')
+            .update({ leida: true })
+            .in('id', ids);
+        
+        if (error) {
+            console.error('Error al actualizar notificaciones en Supabase:', error);
+            showToast('Error al actualizar notificaciones', 'error');
+        }
+    } catch (error) {
+        console.error('Error al marcar todas las notificaciones como leídas:', error);
+    }
     
     // Actualizar contador de notificaciones
     actualizarContadorNotificaciones();

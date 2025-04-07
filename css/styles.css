@@ -1689,7 +1689,8 @@ tr.anulado {
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
-    width: 90%;
+    width: auto;
+    min-width: 250px;
     max-width: 320px;
     background-color: white;
     padding: 12px;

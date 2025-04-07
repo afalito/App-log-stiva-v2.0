@@ -4,7 +4,7 @@ Este documento sirve como registro histórico del desarrollo de la aplicación F
 
 ## Estado actual del proyecto
 
-**Fecha última actualización: 07/04/2025**
+**Fecha última actualización: 08/04/2025**
 
 ### Resumen del proyecto
 Fluxon Logistics es una aplicación de gestión logística para seguimiento de pedidos, desde su creación hasta su entrega. Inicialmente desarrollada como una aplicación web local que utilizaba localStorage para demostración, ahora está siendo conectada a Supabase como backend. La aplicación ya ha sido desplegada en Vercel y está disponible online.
@@ -82,6 +82,14 @@ Consultar el [README.md](./README.md) para información detallada sobre:
 - Organización del repositorio y documentación
 - Pendiente: Prueba de la integración completa y actualización del despliegue
 
+### Sesión 5: Mejora de notificaciones e integración con Supabase (08/04/2025)
+- Mejora del widget de solicitud de permisos de notificaciones (responsive y centrado)
+- Integración completa de notificaciones con Supabase
+- Creación de la tabla preferencias_usuario para almacenar configuraciones
+- Implementación de persistencia de preferencias de notificaciones
+- Modificación de la lógica para guardar y leer notificaciones desde Supabase
+- Mejora de UX en la interfaz de notificaciones
+
 ## Notas técnicas importantes
 
 ### Arquitectura de la aplicación
@@ -103,6 +111,7 @@ Consultar el [README.md](./README.md) para información detallada sobre:
 - `detalles_pedido`: Productos en cada pedido
 - `historial_pedidos`: Registro de cambios de estado
 - `notificaciones`: Sistema de notificaciones a usuarios
+- `preferencias_usuario`: Almacena configuraciones específicas de cada usuario (tema, preferencias de notificaciones, etc.)
 
 ### Row Level Security (RLS)
 - Todas las tablas tienen RLS habilitado
