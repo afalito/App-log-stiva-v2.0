@@ -57,7 +57,12 @@ function loginUser() {
             loadDummyData();
         }
         
+        // Verificación de los usuarios para depuración
         console.log("Intentando login con:", username, "Usuarios disponibles:", app.usuarios.length);
+        console.log("Lista de usuarios disponibles:");
+        app.usuarios.forEach(u => {
+            console.log(`- ${u.username} (${u.rol}): Activo=${u.activo}, Password coincide=${u.password === password}`);
+        });
         
         // Buscar usuario en la "base de datos"
         const user = app.usuarios.find(u => 

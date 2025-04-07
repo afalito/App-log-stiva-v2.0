@@ -1,16 +1,29 @@
 // Registro del Service Worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then(registration => {
-        console.log('Service Worker registrado con éxito:', registration.scope);
-        
-        // Solicitar permiso para notificaciones
+    // Verificar si estamos en protocolo http o https (no file://)
+    if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+      console.log('Protocolo compatible detectado, intentando registrar Service Worker...');
+      navigator.serviceWorker.register('/sw.js')
+        .then(registration => {
+          console.log('Service Worker registrado con éxito:', registration.scope);
+          
+          // Solicitar permiso para notificaciones
+          requestNotificationPermission();
+        })
+        .catch(error => {
+          console.error('Error al registrar el Service Worker:', error);
+        });
+    } else {
+      console.warn('No se puede registrar el Service Worker: protocolo no compatible (' + window.location.protocol + ').');
+      console.warn('Para funcionalidad PWA completa, use un servidor web (http o https).');
+      
+      // Aún podemos ofrecer algunas funcionalidades básicas
+      if ('Notification' in window) {
+        console.log('Ofreciendo notificaciones básicas sin Service Worker');
         requestNotificationPermission();
-      })
-      .catch(error => {
-        console.error('Error al registrar el Service Worker:', error);
-      });
+      }
+    }
   });
 }
 

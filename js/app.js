@@ -364,7 +364,6 @@ function updateDashboard() {
             }
             
             // Ocultar loader una vez que el gráfico está listo para ser creado
-            const chartLoader = document.getElementById('chart-loader');
             if (chartLoader) {
                 chartLoader.style.display = 'none';
             }

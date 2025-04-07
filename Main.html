@@ -731,6 +731,10 @@
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script>
+    // Script de depuración para asegurar la carga correcta
+    console.log("Iniciando carga de scripts en Main.html...");
+    </script>
     <script src="js/app.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/modules/pedidos.js"></script>
@@ -742,5 +746,28 @@
     <!-- PWA Scripts -->
     <script src="js/pwa.js"></script>
     <script src="js/pwa-install.js"></script>
+    
+    <!-- Script para verificar carga de usuarios -->
+    <script>
+    // Verificar que los usuarios estén cargados correctamente
+    window.addEventListener('load', function() {
+        console.log("Verificación final de carga:");
+        console.log("Usuarios cargados:", app.usuarios.length);
+        // Hardcodear un usuario admin para pruebas si no hay usuarios
+        if (!app.usuarios || app.usuarios.length === 0) {
+            console.error("¡NO SE CARGARON USUARIOS! Creando usuario de respaldo...");
+            app.usuarios = [{
+                id: 1,
+                nombre: 'Admin',
+                apellido: 'Sistema',
+                username: 'admin',
+                password: 'admin123',
+                rol: 'maestro',
+                activo: true
+            }];
+            console.log("Usuario admin creado manualmente para permitir login.");
+        }
+    });
+    </script>
 </body>
 </html>
