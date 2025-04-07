@@ -3,17 +3,16 @@ const CACHE_NAME = 'fluxon-logistics-v1';
 
 // Archivos a cachear
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/Main.html',
-  '/css/styles.css',
-  '/js/app.js',
-  '/js/auth.js',
-  '/js/modules/pedidos.js',
-  '/js/modules/productos.js',
-  '/js/modules/usuarios.js',
-  '/js/modules/informes.js',
-  '/js/modules/notificaciones.js',
+  './',
+  './index.html',
+  './css/styles.css',
+  './js/app.js',
+  './js/auth.js',
+  './js/modules/pedidos.js',
+  './js/modules/productos.js',
+  './js/modules/usuarios.js',
+  './js/modules/informes.js',
+  './js/modules/notificaciones.js',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
   'https://cdn.jsdelivr.net/npm/chart.js',
   'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'

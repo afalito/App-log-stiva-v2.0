@@ -87,7 +87,6 @@ Fluxon Logistics es una aplicación de gestión logística diseñada para facili
 ```
 /
 ├── index.html            # Archivo principal HTML
-├── Main.html             # Alias de index.html para compatibilidad
 ├── manifest.json         # Manifest para PWA
 ├── sw.js                 # Service Worker
 ├── css/

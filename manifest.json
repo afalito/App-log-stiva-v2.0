@@ -2,7 +2,7 @@
   "name": "Fluxon Logistics",
   "short_name": "Fluxon",
   "description": "Aplicación de gestión logística para seguimiento de pedidos y entregas",
-  "start_url": "/index.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#013AFB",

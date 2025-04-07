@@ -4,7 +4,7 @@ if ('serviceWorker' in navigator) {
     // Verificar si estamos en protocolo http o https (no file://)
     if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
       console.log('Protocolo compatible detectado, intentando registrar Service Worker...');
-      navigator.serviceWorker.register('/sw.js')
+      navigator.serviceWorker.register('./sw.js')
         .then(registration => {
           console.log('Service Worker registrado con éxito:', registration.scope);
           
