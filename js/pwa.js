@@ -30,27 +30,6 @@ if ('serviceWorker' in navigator) {
 // Solicitar permiso para notificaciones
 async function requestNotificationPermission() {
   if ('Notification' in window) {
-    // Verificar preferencia guardada en Supabase si el usuario está autenticado
-    let preferenciaNoDeMostrarWidget = false;
-    
-    if (app && app.currentUser) {
-      try {
-        const supabase = getSupabaseClient();
-        const { data, error } = await supabase
-          .from('preferencias_usuario')
-          .select('no_mostrar_notificacion_widget')
-          .eq('usuario_id', app.currentUser.id)
-          .single();
-          
-        if (data && data.no_mostrar_notificacion_widget) {
-          preferenciaNoDeMostrarWidget = true;
-          console.log('Usuario eligió no mostrar el widget de notificaciones');
-        }
-      } catch (error) {
-        console.warn('Error al verificar preferencias de usuario:', error);
-      }
-    }
-    
     // Si el usuario tiene permisos concedidos, omitir widget
     if (Notification.permission === 'granted') {
       console.log('Permiso de notificaciones ya concedido');
@@ -61,8 +40,46 @@ async function requestNotificationPermission() {
       return;
     }
     
-    // Si eligió no ver el widget o los permisos están denegados, omitirlo
-    if (preferenciaNoDeMostrarWidget || Notification.permission === 'denied') {
+    // Si los permisos están denegados, omitirlo
+    if (Notification.permission === 'denied') {
+      return;
+    }
+    
+    // Verificar si el usuario está autenticado antes de mostrar el banner
+    if (!app || !app.currentUser) {
+      console.log('Usuario no autenticado, esperando hasta después del login para mostrar notificaciones');
+      return;
+    }
+    
+    // Verificar preferencia guardada en Supabase
+    let preferenciaNoDeMostrarWidget = false;
+    
+    try {
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase
+        .from('preferencias_usuario')
+        .select('no_mostrar_notificacion_widget')
+        .eq('usuario_id', app.currentUser.id)
+        .single();
+        
+      if (data && data.no_mostrar_notificacion_widget) {
+        preferenciaNoDeMostrarWidget = true;
+        console.log('Usuario eligió no mostrar el widget de notificaciones');
+        return;
+      }
+    } catch (error) {
+      console.warn('Error al verificar preferencias de usuario:', error);
+    }
+    
+    // Verificar si ya hay un banner de notificaciones visible
+    if (document.querySelector('.permission-notification')) {
+      console.log('Widget de notificaciones ya visible, no mostrar otro');
+      return;
+    }
+    
+    // Verificar si estamos en la pantalla de login
+    if (document.getElementById('login-container').style.display !== 'none') {
+      console.log('Usuario en pantalla de login, esperando hasta después del login');
       return;
     }
     
@@ -71,6 +88,7 @@ async function requestNotificationPermission() {
       // Mostrar un mensaje explicativo antes de solicitar permisos
       const notification = document.createElement('div');
       notification.className = 'permission-notification';
+      notification.id = 'permission-notification-widget';
       notification.innerHTML = `
         <div class="permission-content">
           <p>¿Quieres recibir notificaciones para tus pedidos?</p>
@@ -139,6 +157,50 @@ async function requestNotificationPermission() {
     }
   }
 }
+
+// Función para ocultar manualmente el banner de notificaciones
+function hideNotificationWidget() {
+  const notificationWidget = document.querySelector('.permission-notification, #permission-notification-widget');
+  if (notificationWidget) {
+    notificationWidget.style.animation = 'slideOut 0.3s ease forwards';
+    setTimeout(() => {
+      notificationWidget.remove();
+    }, 300);
+    
+    // Guardar preferencia del usuario para no mostrar el widget en el futuro
+    if (app && app.currentUser) {
+      try {
+        const supabase = getSupabaseClient();
+        supabase
+          .from('preferencias_usuario')
+          .upsert({
+            usuario_id: app.currentUser.id,
+            no_mostrar_notificacion_widget: true,
+            updated_at: new Date().toISOString()
+          });
+        console.log('Preferencia de no mostrar widget guardada al ocultar manualmente');
+      } catch (error) {
+        console.warn('Error al guardar preferencia de usuario:', error);
+      }
+    }
+  }
+}
+
+// Agregar estilo para la animación de salida del widget de notificaciones
+const notificationStyle = document.createElement('style');
+notificationStyle.textContent = `
+  @keyframes slideOut {
+    from {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateY(-100px);
+      opacity: 0;
+    }
+  }
+`;
+document.head.appendChild(notificationStyle);
 
 // Guardar la preferencia de notificaciones en Supabase
 async function saveNotificationPreference(habilitado) {

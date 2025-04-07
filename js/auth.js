@@ -286,6 +286,31 @@ async function createOrUpdateSupabaseAuthUser(username, password) {
     try {
         const supabase = getSupabaseClient();
         
+        // Verificar si el usuario ya existe en Auth
+        try {
+            const { data: existingUser, error: checkError } = await supabase.auth.signInWithPassword({
+                email: `${username}@app.com`,
+                password: password
+            });
+            
+            if (existingUser && existingUser.user) {
+                console.log("Usuario ya existe en Supabase Auth, actualizando contraseña:", username);
+                // Actualizar contraseña si ya existe
+                const { error: updateError } = await supabase.auth.updateUser({
+                    password: password
+                });
+                
+                if (updateError) {
+                    console.warn("Error al actualizar contraseña en Auth:", updateError.message);
+                }
+                
+                return true;
+            }
+        } catch (checkUserError) {
+            // El usuario probablemente no existe, continuamos con la creación
+            console.log("Usuario no encontrado en Auth, procediendo a crear:", username);
+        }
+        
         // Intentar registrar el usuario en Supabase Auth
         const { data, error } = await supabase.auth.signUp({
             email: `${username}@app.com`,
@@ -297,7 +322,7 @@ async function createOrUpdateSupabaseAuthUser(username, password) {
             return false;
         }
         
-        console.log("Usuario registrado/actualizado en Supabase Auth:", username);
+        console.log("Usuario registrado en Supabase Auth:", username);
         return true;
     } catch (error) {
         console.error("Error al crear/actualizar usuario en Auth:", error);
@@ -377,6 +402,27 @@ function loginSuccess() {
     if (appLoader) {
         appLoader.style.display = 'none';
     }
+    
+    // Si hay un prompt de notificaciones, ocultarlo
+    const notificationPrompt = document.getElementById('notification-permission-prompt');
+    if (notificationPrompt) {
+        hideNotificationPrompt();
+    }
+    
+    // Ocultar el widget de notificaciones persistente si existe
+    setTimeout(() => {
+        if (typeof hideNotificationWidget === 'function') {
+            hideNotificationWidget();
+        } else {
+            const permissionNotification = document.querySelector('.permission-notification');
+            if (permissionNotification) {
+                permissionNotification.remove();
+            }
+        }
+    }, 500);
+    
+    // Almacenar en sessionStorage para mantener la sesión en caso de refresco
+    sessionStorage.setItem('lastModule', 'dashboard');
 }
 
 // Cargar datos iniciales desde Supabase

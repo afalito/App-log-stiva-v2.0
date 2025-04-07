@@ -462,13 +462,18 @@ async function saveUsuario(usuario) {
       
       console.log('Usuario creado correctamente:', data);
       
-      // Intentar crear en Supabase Auth
-      if (authUpdateAvailable) {
-        try {
+      // Intentar crear en Supabase Auth SIEMPRE cuando un usuario es creado
+      try {
+        if (!usuario.username || !usuario.password) {
+          console.warn('No se puede crear usuario en Auth: falta username o password');
+        } else {
+          console.log('Creando usuario en Supabase Auth:', usuario.username);
           await createOrUpdateSupabaseAuthUser(usuario.username, usuario.password);
-        } catch (authError) {
-          console.warn('No se pudo crear usuario en Auth:', authError);
+          console.log('Usuario creado en Auth correctamente');
         }
+      } catch (authError) {
+        console.warn('No se pudo crear usuario en Auth:', authError);
+        // Continuar, ya que el usuario se creó en la tabla usuarios
       }
       
       return data;

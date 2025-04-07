@@ -14,6 +14,12 @@ const app = {
 document.addEventListener('DOMContentLoaded', () => {
     console.log("Iniciando aplicación...");
     
+    // Eliminar cualquier widget de notificaciones persistente que pueda haber quedado
+    const permissionNotifications = document.querySelectorAll('.permission-notification, #permission-notification-widget');
+    if (permissionNotifications.length > 0) {
+        permissionNotifications.forEach(element => element.remove());
+    }
+    
     // Mostrar el cargador
     const appLoader = document.getElementById('app-loader');
     if (appLoader) {
@@ -40,6 +46,9 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             app.currentUser = JSON.parse(savedUser);
             loginSuccess();
+            
+            // Restaurar último módulo después de refresco
+            restoreLastModuleAfterRefresh();
         } catch (error) {
             console.error('Error al cargar el usuario:', error);
         }
@@ -58,6 +67,21 @@ document.addEventListener('DOMContentLoaded', () => {
         appLoader.style.display = 'none';
     }
 });
+
+// Restaurar el último módulo después de refresco
+function restoreLastModuleAfterRefresh() {
+    // Verificar si hay un usuario actual y un módulo guardado
+    if (app.currentUser && sessionStorage.getItem('lastModule')) {
+        const lastModule = sessionStorage.getItem('lastModule');
+        // Solo restauramos si no estamos en login
+        if (document.getElementById('login-container').style.display === 'none') {
+            console.log('Restaurando último módulo:', lastModule);
+            setTimeout(() => {
+                changeModule(lastModule);
+            }, 100);
+        }
+    }
+}
 
 // Inicialización de módulos
 function initModules() {
@@ -182,6 +206,9 @@ function changeModule(moduleName) {
     
     // Cargar contenido del módulo
     loadModuleContent(moduleName);
+    
+    // Guardar módulo actual en sessionStorage para refresco
+    sessionStorage.setItem('lastModule', moduleName);
 }
 
 // Cargar contenido del módulo
