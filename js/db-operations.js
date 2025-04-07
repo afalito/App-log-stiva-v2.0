@@ -408,7 +408,7 @@ async function saveUsuario(usuario) {
         .from('usuarios')
         .update(updateData)
         .eq('id', usuario.id)
-        .select()
+        .select('*')
         .single();
       
       if (error) {
@@ -417,7 +417,24 @@ async function saveUsuario(usuario) {
       }
       
       console.log('Usuario actualizado correctamente:', data);
-      return data || { id: usuario.id };
+      // Asegurarnos de devolver los datos actualizados, no solo el ID
+      if (!data) {
+        // Si no hay datos devueltos, hacer una consulta adicional para obtener el usuario
+        const { data: freshData, error: fetchError } = await supabase
+          .from('usuarios')
+          .select('*')
+          .eq('id', usuario.id)
+          .single();
+          
+        if (fetchError) {
+          console.warn('Error al obtener usuario actualizado:', fetchError);
+          return { id: usuario.id };
+        }
+        
+        return freshData;
+      }
+      
+      return data;
     } else {
       // Preparar datos para inserción
       const insertData = {

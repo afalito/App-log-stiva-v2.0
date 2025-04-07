@@ -59,8 +59,16 @@ async function updateUsuariosTable() {
         let usuarios = [];
         
         try {
-            // Usar la función de dbOperations
-            usuarios = await dbOperations.fetchUsuarios();
+            // Forzar recarga desde Supabase para tener los datos más recientes
+            const supabase = getSupabaseClient();
+            const { data, error } = await supabase
+                .from('usuarios')
+                .select('*')
+                .order('id', { ascending: true });
+                
+            if (error) throw error;
+            
+            usuarios = data || [];
             console.log('Usuarios cargados desde Supabase:', usuarios);
             
             // Actualizar la caché local
@@ -370,10 +378,26 @@ async function saveUsuario() {
             
             // Si hay ID en el resultado, la operación fue exitosa
             if (result && (result.id || usuarioId)) {
+                console.log('Resultado de operación de usuario:', result);
+                
+                // Actualizar el usuario en la cache local con los datos recibidos de Supabase
+                if (result) {
+                    // Buscar el usuario en la caché y actualizarlo
+                    const index = app.usuarios.findIndex(u => u.id === (result.id || parseInt(usuarioId)));
+                    if (index !== -1) {
+                        // Actualizar con los datos nuevos
+                        app.usuarios[index] = {...app.usuarios[index], ...result};
+                    } else if (result.id) {
+                        // Para usuario nuevo, añadirlo a la caché
+                        app.usuarios.push(result);
+                    }
+                }
+                
                 // Si era una actualización del usuario actual, actualizar UI y localStorage
                 if (usuarioId && parseInt(usuarioId) === app.currentUser.id) {
                     app.currentUser.nombre = nombre;
                     app.currentUser.apellido = apellido;
+                    app.currentUser.username = username;
                     
                     // Actualizar UI
                     document.getElementById('current-user-name').textContent = `${nombre} ${apellido}`;
@@ -393,7 +417,7 @@ async function saveUsuario() {
                 // Cerrar modal
                 closeModal('usuario-modal');
                 
-                // Actualizar tabla
+                // Actualizar tabla - refrescar desde Supabase para confirmar que los cambios se guardaron
                 await updateUsuariosTable();
             } else {
                 throw new Error('No se recibió confirmación del servidor');
@@ -459,10 +483,14 @@ async function editUsuario(usuarioId) {
             throw new Error(`Usuario con ID ${usuarioId} no encontrado`);
         }
         
-        // Actualizar el cache local
+        console.log('Datos actuales del usuario obtenidos de Supabase:', usuario);
+        
+        // Actualizar el cache local completamente
         const index = app.usuarios.findIndex(u => u.id === usuarioId);
         if (index !== -1) {
-            app.usuarios[index] = usuario;
+            app.usuarios[index] = {...usuario};
+        } else {
+            app.usuarios.push({...usuario});
         }
         
         // Ahora abrimos el modal con los datos actualizados
