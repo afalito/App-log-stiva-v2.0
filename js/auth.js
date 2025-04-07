@@ -24,17 +24,60 @@ function initAuth() {
 
 // Verificar si hay una sesión existente
 async function checkExistingSession() {
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) {
-        try {
+    try {
+        const supabase = getSupabaseClient();
+        
+        // Primero verificar si hay sesión de Supabase Auth
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionData && sessionData.session) {
+            console.log("Sesión de Supabase Auth detectada");
+            
+            // Obtener el usuario vinculado a esta sesión
+            const { data: { user }, error: userError } = await supabase.auth.getUser();
+            
+            if (user) {
+                // Extraer el username del email (si se usó el formato username@app.com)
+                const username = user.email.split('@')[0];
+                
+                // Buscar el usuario en nuestra tabla
+                const { data: userData, error: dbError } = await supabase
+                    .from('usuarios')
+                    .select('*')
+                    .eq('username', username)
+                    .single();
+                
+                if (userData && userData.activo) {
+                    // Usuario válido, cargar en la app
+                    app.currentUser = {
+                        id: userData.id,
+                        nombre: userData.nombre,
+                        apellido: userData.apellido,
+                        username: userData.username,
+                        rol: userData.rol
+                    };
+                    
+                    // Guardar en localStorage
+                    localStorage.setItem('currentUser', JSON.stringify(app.currentUser));
+                    
+                    // Continuar con inicio de sesión
+                    loginSuccess();
+                    return;
+                }
+            }
+        }
+        
+        // Si no hay sesión de Auth o no se pudo validar, verificar localStorage
+        const savedUser = localStorage.getItem('currentUser');
+        if (savedUser) {
             const userData = JSON.parse(savedUser);
             // Verificar que el usuario sigue siendo válido en la base de datos
             await verifyUserInDatabase(userData);
-        } catch (error) {
-            console.error('Error al cargar la sesión del usuario:', error);
-            // Si hay error, limpiar la sesión
-            localStorage.removeItem('currentUser');
         }
+    } catch (error) {
+        console.error('Error al verificar la sesión existente:', error);
+        // Si hay error, limpiar la sesión
+        localStorage.removeItem('currentUser');
     }
 }
 
@@ -111,54 +154,112 @@ async function loginUser() {
     try {
         const supabase = getSupabaseClient();
         
-        // Consultar usuario en la base de datos
-        const { data, error } = await supabase
-            .from('usuarios')
-            .select('*')
-            .eq('username', username)
-            .single();
+        // Utilizamos el método de autenticación de Supabase con credenciales
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+            email: `${username}@app.com`, // Supabase requiere un formato de email
+            password: password
+        });
         
-        if (error && error.code !== 'PGRST116') {
-            // Error de supabase distinto a "no se encontraron resultados"
-            throw error;
-        }
-        
-        if (data && data.password === password && data.activo) {
-            console.log("Usuario autenticado con éxito:", data.nombre, data.rol);
+        // Si hay error de autenticación con Supabase Auth
+        if (authError) {
+            console.error("Error de autenticación con Supabase:", authError);
             
-            // Guardar usuario en la aplicación
-            app.currentUser = {
-                id: data.id,
-                nombre: data.nombre,
-                apellido: data.apellido,
-                username: data.username,
-                rol: data.rol
-            };
+            // Intentamos el método alternativo consultando directamente la tabla
+            const { data, error } = await supabase
+                .from('usuarios')
+                .select('*')
+                .eq('username', username)
+                .single();
             
-            // Guardar en localStorage
-            localStorage.setItem('currentUser', JSON.stringify(app.currentUser));
+            if (error && error.code !== 'PGRST116') {
+                // Error de supabase distinto a "no se encontraron resultados"
+                throw error;
+            }
             
-            // Continuar con el inicio de sesión
-            loginSuccess();
+            if (data && data.password === password && data.activo) {
+                console.log("Usuario autenticado con éxito (método alternativo):", data.nombre, data.rol);
+                
+                // Guardar usuario en la aplicación
+                app.currentUser = {
+                    id: data.id,
+                    nombre: data.nombre,
+                    apellido: data.apellido,
+                    username: data.username,
+                    rol: data.rol
+                };
+                
+                // Guardar en localStorage
+                localStorage.setItem('currentUser', JSON.stringify(app.currentUser));
+                
+                // Continuar con el inicio de sesión
+                loginSuccess();
+            } else {
+                // Error de autenticación
+                if (appLoader) {
+                    appLoader.style.display = 'none';
+                }
+                
+                if (data) {
+                    // Usuario existe pero contraseña incorrecta o inactivo
+                    if (data.password !== password) {
+                        document.getElementById('password-error').textContent = 'Contraseña incorrecta';
+                    } else if (!data.activo) {
+                        document.getElementById('username-error').textContent = 'Usuario inactivo';
+                        document.getElementById('password-error').textContent = 'Contacte a su administrador';
+                    }
+                } else {
+                    // Usuario no existe
+                    document.getElementById('username-error').textContent = 'Usuario no encontrado';
+                    document.getElementById('password-error').textContent = 'Verifica tus credenciales';
+                }
+            }
+        } else if (authData && authData.user) {
+            // Éxito en la autenticación con Supabase Auth
+            console.log("Usuario autenticado con éxito mediante Supabase Auth");
+            
+            // Obtener datos completos del usuario desde nuestra tabla
+            const { data: userData, error: userError } = await supabase
+                .from('usuarios')
+                .select('*')
+                .eq('username', username)
+                .single();
+                
+            if (userError) {
+                throw userError;
+            }
+            
+            if (userData && userData.activo) {
+                // Guardar usuario en la aplicación
+                app.currentUser = {
+                    id: userData.id,
+                    nombre: userData.nombre,
+                    apellido: userData.apellido,
+                    username: userData.username,
+                    rol: userData.rol
+                };
+                
+                // Guardar en localStorage
+                localStorage.setItem('currentUser', JSON.stringify(app.currentUser));
+                
+                // Continuar con el inicio de sesión
+                loginSuccess();
+            } else {
+                // Usuario inactivo o no encontrado
+                if (appLoader) {
+                    appLoader.style.display = 'none';
+                }
+                
+                document.getElementById('username-error').textContent = 'Usuario inactivo';
+                document.getElementById('password-error').textContent = 'Contacte a su administrador';
+            }
         } else {
-            // Error de autenticación
+            // No debería llegar aquí, pero por si acaso
             if (appLoader) {
                 appLoader.style.display = 'none';
             }
             
-            if (data) {
-                // Usuario existe pero contraseña incorrecta o inactivo
-                if (data.password !== password) {
-                    document.getElementById('password-error').textContent = 'Contraseña incorrecta';
-                } else if (!data.activo) {
-                    document.getElementById('username-error').textContent = 'Usuario inactivo';
-                    document.getElementById('password-error').textContent = 'Contacte a su administrador';
-                }
-            } else {
-                // Usuario no existe
-                document.getElementById('username-error').textContent = 'Usuario no encontrado';
-                document.getElementById('password-error').textContent = 'Verifica tus credenciales';
-            }
+            document.getElementById('username-error').textContent = 'Error de autenticación';
+            document.getElementById('password-error').textContent = 'Por favor, intente de nuevo';
         }
     } catch (error) {
         console.error("Error durante el login:", error);
@@ -315,7 +416,15 @@ async function logout() {
     }
     
     try {
-        // En el futuro podríamos llamar a Supabase para invalidar tokens o sesiones
+        // Cerrar sesión en Supabase Auth
+        const supabase = getSupabaseClient();
+        const { error } = await supabase.auth.signOut();
+        
+        if (error) {
+            console.error('Error al cerrar sesión en Supabase Auth:', error);
+        } else {
+            console.log('Sesión de Supabase Auth cerrada correctamente');
+        }
         
         // Eliminar usuario del localStorage
         localStorage.removeItem('currentUser');
