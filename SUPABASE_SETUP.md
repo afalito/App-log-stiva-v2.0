@@ -27,11 +27,11 @@ Este documento te guiará paso a paso para configurar Supabase con la aplicació
 2. Copia el contenido del archivo `sql/enable_rls.sql`
 3. Ejecuta el query para habilitar RLS y configurar las políticas de seguridad
 
-### 4. Crear usuarios en el sistema de autenticación
+### 4. Crear usuarios iniciales (si es necesario)
 
-1. En el SQL Editor, crea otro nuevo query
-2. Copia el contenido del archivo `sql/create_auth_users.sql`
-3. Ejecuta el query para crear los usuarios en el sistema de autenticación de Supabase
+1. Los usuarios se crean directamente desde la interfaz de usuario utilizando la función "Nuevo Usuario" en el módulo de usuarios
+2. No se utiliza Supabase Auth, solo la tabla `usuarios` para autenticación
+3. No es necesario ejecutar el archivo `sql/create_auth_users.sql` (que está desactivado)
 
 ### 5. Configurar la aplicación
 

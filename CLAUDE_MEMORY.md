@@ -199,10 +199,9 @@ Consultar el [README.md](./README.md) para información detallada sobre:
 - Almacenamiento: Supabase para producción, localStorage como respaldo automático para offline
 
 ### Sistema de autenticación
-- Formato de email en Supabase: `username@app.com` (generado automáticamente desde la UI)
+- Autenticación directa contra tabla usuarios (sin usar Supabase Auth)
 - Roles de usuario: maestro, vendedor, bodega, conductor, tesorería (gestionables desde la UI)
-- Método principal: Supabase Auth integrado en la interfaz existente
-- Método de respaldo: Autenticación directa contra tabla usuarios (transparente para el usuario)
+- No se requiere email, solo username y password
 
 ### Estructura de la base de datos
 - `usuarios`: Almacena información de los usuarios (✅ conectado, accesible solo desde UI)

@@ -25,42 +25,7 @@ function initAuth() {
 // Verificar si hay una sesión existente
 async function checkExistingSession() {
     try {
-        const supabase = getSupabaseClient();
-        
-        // Primero verificar si hay sesión de Supabase Auth
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionData && sessionData.session) {
-            console.log("Sesión de Supabase Auth detectada");
-            
-            // Obtener el usuario vinculado a esta sesión
-            const { data: { user }, error: userError } = await supabase.auth.getUser();
-            
-            if (user) {
-                // Usar la función de sincronización para obtener el usuario de la app
-                const appUser = await sincronizarUsuarioSupabase(user);
-                
-                if (appUser) {
-                    // Usuario válido, cargar en la app
-                    app.currentUser = appUser;
-                    
-                    // Guardar en localStorage
-                    localStorage.setItem('currentUser', JSON.stringify(app.currentUser));
-                    
-                    // Continuar con inicio de sesión
-                    loginSuccess();
-                    return;
-                } else {
-                    console.warn("Sesión de Supabase válida, pero no se encontró el usuario en la base de datos");
-                    // Cerrar la sesión de Supabase ya que el usuario no existe o está inactivo
-                    await supabase.auth.signOut();
-                }
-            }
-        } else {
-            console.log("No hay sesión de Supabase Auth activa");
-        }
-        
-        // Si no hay sesión de Auth o no se pudo validar, verificar localStorage
+        // Verificar si hay un usuario guardado en localStorage
         const savedUser = localStorage.getItem('currentUser');
         if (savedUser) {
             console.log("Verificando usuario guardado en localStorage");
@@ -148,118 +113,71 @@ async function loginUser() {
     try {
         const supabase = getSupabaseClient();
         
-        console.log(`Intentando autenticar a usuario: ${username} con Supabase Auth...`);
+        console.log(`Intentando autenticar a usuario: ${username}...`);
         
-        // Método 1: Autenticación con Supabase Auth
-        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-            email: `${username}@app.com`, // Supabase requiere un formato de email
-            password: password
-        });
+        // Autenticación directa con tabla usuarios (método principal)
+        console.log("Autenticando con tabla usuarios...");
+        const { data: userData, error: userError } = await supabase
+            .from('usuarios')
+            .select('*')
+            .eq('username', username)
+            .single();
         
-        // Si hay error de autenticación con Supabase Auth
-        if (authError) {
-            console.warn("Error de autenticación con Supabase Auth:", authError.message);
-            
-            // Método 2: Autenticación directa con tabla usuarios
-            console.log("Intentando autenticación alternativa con tabla usuarios...");
-            const { data: userData, error: userError } = await supabase
-                .from('usuarios')
-                .select('*')
-                .eq('username', username)
-                .single();
-            
-            if (userError) {
-                if (userError.code === 'PGRST116') {
-                    // No se encontraron resultados (usuario no existe)
-                    console.warn("Usuario no encontrado en la base de datos");
-                    if (appLoader) {
-                        appLoader.style.display = 'none';
-                    }
-                    document.getElementById('username-error').textContent = 'Usuario no encontrado';
-                    document.getElementById('password-error').textContent = 'Verifica tus credenciales';
-                    return;
-                } else {
-                    // Otro error de consulta
-                    throw userError;
-                }
-            }
-            
-            if (userData) {
-                if (!userData.activo) {
-                    // Usuario existe pero está inactivo
-                    console.warn("Usuario inactivo:", username);
-                    if (appLoader) {
-                        appLoader.style.display = 'none';
-                    }
-                    document.getElementById('username-error').textContent = 'Usuario inactivo';
-                    document.getElementById('password-error').textContent = 'Contacte a su administrador';
-                    return;
-                }
-                
-                if (userData.password !== password) {
-                    // Contraseña incorrecta
-                    console.warn("Contraseña incorrecta para usuario:", username);
-                    if (appLoader) {
-                        appLoader.style.display = 'none';
-                    }
-                    document.getElementById('password-error').textContent = 'Contraseña incorrecta';
-                    return;
-                }
-                
-                // Usuario y contraseña válidos (método alternativo)
-                console.log("Usuario autenticado con éxito (método alternativo):", userData.nombre, userData.rol);
-                
-                // Intentar registrar o actualizar el usuario en Supabase Auth para futuros logins
-                try {
-                    await createOrUpdateSupabaseAuthUser(username, password);
-                } catch (authRegisterError) {
-                    console.warn("No se pudo registrar usuario en Auth:", authRegisterError);
-                    // Continuamos con el login aunque no se haya podido registrar en Auth
-                }
-                
-                // Guardar usuario en la aplicación
-                app.currentUser = {
-                    id: userData.id,
-                    nombre: userData.nombre,
-                    apellido: userData.apellido,
-                    username: userData.username,
-                    rol: userData.rol
-                };
-                
-                // Guardar en localStorage
-                localStorage.setItem('currentUser', JSON.stringify(app.currentUser));
-                
-                // Continuar con el inicio de sesión
-                loginSuccess();
-            }
-        } else if (authData && authData.user) {
-            // Éxito en la autenticación con Supabase Auth
-            console.log("Usuario autenticado con éxito mediante Supabase Auth");
-            
-            // Usar nuestra función de sincronización
-            const appUser = await sincronizarUsuarioSupabase(authData.user);
-            
-            if (appUser) {
-                // Guardar usuario en la aplicación
-                app.currentUser = appUser;
-                
-                // Guardar en localStorage
-                localStorage.setItem('currentUser', JSON.stringify(app.currentUser));
-                
-                // Continuar con el inicio de sesión
-                loginSuccess();
-            } else {
-                // Usuario inactivo o no encontrado en nuestra tabla
+        if (userError) {
+            if (userError.code === 'PGRST116') {
+                // No se encontraron resultados (usuario no existe)
+                console.warn("Usuario no encontrado en la base de datos");
                 if (appLoader) {
                     appLoader.style.display = 'none';
                 }
-                
-                // Cerrar la sesión de Supabase ya que el usuario no existe o está inactivo
-                await supabase.auth.signOut();
-                
-                document.getElementById('username-error').textContent = 'Usuario no encontrado o inactivo';
-                document.getElementById('password-error').textContent = 'Contacte a su administrador';
+                document.getElementById('username-error').textContent = 'Usuario no encontrado';
+                document.getElementById('password-error').textContent = 'Verifica tus credenciales';
+                return;
+            } else {
+                // Otro error de consulta
+                throw userError;
             }
+        }
+        
+        if (userData) {
+            if (!userData.activo) {
+                // Usuario existe pero está inactivo
+                console.warn("Usuario inactivo:", username);
+                if (appLoader) {
+                    appLoader.style.display = 'none';
+                }
+                document.getElementById('username-error').textContent = 'Usuario inactivo';
+                document.getElementById('password-error').textContent = 'Contacte a su administrador';
+                return;
+            }
+            
+            if (userData.password !== password) {
+                // Contraseña incorrecta
+                console.warn("Contraseña incorrecta para usuario:", username);
+                if (appLoader) {
+                    appLoader.style.display = 'none';
+                }
+                document.getElementById('password-error').textContent = 'Contraseña incorrecta';
+                return;
+            }
+            
+            // Usuario y contraseña válidos
+            console.log("Usuario autenticado con éxito:", userData.nombre, userData.rol);
+            
+            // Guardar usuario en la aplicación
+            app.currentUser = {
+                id: userData.id,
+                nombre: userData.nombre,
+                apellido: userData.apellido,
+                username: userData.username,
+                rol: userData.rol
+            };
+            
+            // Guardar en localStorage
+            localStorage.setItem('currentUser', JSON.stringify(app.currentUser));
+            
+            // Continuar con el inicio de sesión
+            loginSuccess();
         } else {
             // No debería llegar aquí, pero por si acaso
             if (appLoader) {
@@ -281,53 +199,11 @@ async function loginUser() {
     }
 }
 
-// Función para crear o actualizar un usuario en Supabase Auth (útil cuando el usuario existe en DB pero no en Auth)
+// Esta función ya no se utiliza porque no estamos usando Supabase Auth
+// La mantenemos por compatibilidad con código existente pero no hace nada
 async function createOrUpdateSupabaseAuthUser(username, password) {
-    try {
-        const supabase = getSupabaseClient();
-        
-        // Verificar si el usuario ya existe en Auth
-        try {
-            const { data: existingUser, error: checkError } = await supabase.auth.signInWithPassword({
-                email: `${username}@app.com`,
-                password: password
-            });
-            
-            if (existingUser && existingUser.user) {
-                console.log("Usuario ya existe en Supabase Auth, actualizando contraseña:", username);
-                // Actualizar contraseña si ya existe
-                const { error: updateError } = await supabase.auth.updateUser({
-                    password: password
-                });
-                
-                if (updateError) {
-                    console.warn("Error al actualizar contraseña en Auth:", updateError.message);
-                }
-                
-                return true;
-            }
-        } catch (checkUserError) {
-            // El usuario probablemente no existe, continuamos con la creación
-            console.log("Usuario no encontrado en Auth, procediendo a crear:", username);
-        }
-        
-        // Intentar registrar el usuario en Supabase Auth
-        const { data, error } = await supabase.auth.signUp({
-            email: `${username}@app.com`,
-            password: password
-        });
-        
-        if (error) {
-            console.warn("No se pudo crear usuario en Supabase Auth:", error.message);
-            return false;
-        }
-        
-        console.log("Usuario registrado en Supabase Auth:", username);
-        return true;
-    } catch (error) {
-        console.error("Error al crear/actualizar usuario en Auth:", error);
-        return false;
-    }
+    console.log("createOrUpdateSupabaseAuthUser: No se usa Supabase Auth");
+    return false;
 }
 
 // Función para usar modo desarrollo en caso de fallo de conexión
@@ -494,23 +370,11 @@ async function logout() {
     }
     
     try {
-        // Cerrar sesión en Supabase Auth
-        const supabase = getSupabaseClient();
-        
         console.log("Cerrando sesión...");
         
-        // Primero intentar cerrar sesión en Supabase Auth
-        const { error } = await supabase.auth.signOut();
-        
-        if (error) {
-            console.error('Error al cerrar sesión en Supabase Auth:', error);
-        } else {
-            console.log('Sesión de Supabase Auth cerrada correctamente');
-        }
-        
-        // Eliminar todas las claves de localStorage relacionadas con Supabase
+        // Eliminar todas las claves de localStorage relacionadas con la aplicación
         Object.keys(localStorage).forEach(key => {
-            if (key.includes('supabase') || key.includes('fluxon_supabase') || key === 'currentUser') {
+            if (key.includes('fluxon') || key === 'currentUser') {
                 localStorage.removeItem(key);
                 console.log(`Eliminada clave de localStorage: ${key}`);
             }
@@ -518,7 +382,6 @@ async function logout() {
         
         // Para asegurarnos, eliminar usuario del localStorage explícitamente
         localStorage.removeItem('currentUser');
-        localStorage.removeItem('fluxon_supabase_auth');
         
         // Limpiar usuario actual
         app.currentUser = null;

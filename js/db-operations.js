@@ -377,12 +377,6 @@ async function saveUsuario(usuario) {
     const supabase = getClient();
     console.log('Guardando usuario en Supabase:', usuario);
     
-    // Verificar si la función createOrUpdateSupabaseAuthUser existe
-    const authUpdateAvailable = typeof createOrUpdateSupabaseAuthUser === 'function';
-    if (!authUpdateAvailable) {
-      console.warn('La función createOrUpdateSupabaseAuthUser no está disponible');
-    }
-    
     if (usuario.id) {
       // Preparar los datos para actualizar
       const updateData = {
@@ -423,17 +417,6 @@ async function saveUsuario(usuario) {
       }
       
       console.log('Usuario actualizado correctamente:', data);
-      
-      // Si se cambió la contraseña, actualizar en Auth
-      if (usuario.password && authUpdateAvailable) {
-        try {
-          // Intentar actualizar en Supabase Auth
-          await createOrUpdateSupabaseAuthUser(usuario.username || data.username, usuario.password);
-        } catch (authError) {
-          console.warn('No se pudo actualizar usuario en Auth:', authError);
-        }
-      }
-      
       return data || { id: usuario.id };
     } else {
       // Preparar datos para inserción
@@ -461,21 +444,6 @@ async function saveUsuario(usuario) {
       }
       
       console.log('Usuario creado correctamente:', data);
-      
-      // Intentar crear en Supabase Auth SIEMPRE cuando un usuario es creado
-      try {
-        if (!usuario.username || !usuario.password) {
-          console.warn('No se puede crear usuario en Auth: falta username o password');
-        } else {
-          console.log('Creando usuario en Supabase Auth:', usuario.username);
-          await createOrUpdateSupabaseAuthUser(usuario.username, usuario.password);
-          console.log('Usuario creado en Auth correctamente');
-        }
-      } catch (authError) {
-        console.warn('No se pudo crear usuario en Auth:', authError);
-        // Continuar, ya que el usuario se creó en la tabla usuarios
-      }
-      
       return data;
     }
   } catch (error) {
