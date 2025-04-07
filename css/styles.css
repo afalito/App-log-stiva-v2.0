@@ -484,11 +484,15 @@ textarea:focus {
     padding: 0.5rem;
     text-align: center;
     flex: 1;
+    transition: all 0.2s ease;
+    position: relative;
 }
 
 .mobile-nav .menu-item i {
     width: auto;
     margin-bottom: 0.25rem;
+    font-size: 1.25rem;
+    transition: all 0.2s ease;
 }
 
 .mobile-nav .menu-item span {
@@ -498,6 +502,34 @@ textarea:focus {
 .mobile-nav .menu-item.active {
     border-left: none;
     border-top: 3px solid var(--primary-color);
+    background-color: var(--primary-light);
+    color: var(--primary-color);
+}
+
+.mobile-nav .menu-item:active {
+    background-color: var(--primary-light);
+    transform: scale(0.95);
+}
+
+/* Badge para notificaciones en móvil */
+.mobile-nav .menu-item[data-module="notificaciones"] {
+    position: relative;
+}
+
+.mobile-nav .notification-mobile-badge {
+    position: absolute;
+    top: 5px;
+    right: 50%;
+    margin-right: -20px;
+    background-color: var(--danger-color);
+    color: white;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* Contenido Principal */
@@ -565,15 +597,64 @@ textarea:focus {
     font-weight: 700;
 }
 
-.dashboard-recent {
+.dashboard-chart {
     background-color: var(--background);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
     padding: 1.5rem;
 }
 
-.dashboard-recent h3 {
+.dashboard-chart h3 {
     margin-bottom: 1rem;
+}
+
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+    min-height: 300px; /* Garantizar altura mínima */
+    
+    /* Fondo mientras carga */
+    background-color: rgba(0, 0, 0, 0.03);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Asegurar que el canvas ocupe todo el espacio disponible */
+.chart-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Loader para el gráfico */
+.chart-loader {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(255, 255, 255, 0.8);
+    z-index: 2;
+}
+
+.spinner-small {
+    width: 30px;
+    height: 30px;
+    border: 3px solid var(--primary-light);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 10px;
+}
+
+.chart-loader span {
+    font-size: 14px;
+    color: var(--text-secondary);
 }
 
 /* Módulos */
@@ -789,6 +870,21 @@ tr.anulado {
 
 .informe-resumen p {
     margin: 0;
+}
+
+.informe-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.btn-success {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.btn-success:hover {
+    background-color: #218838;
 }
 
 .informe-table-container {
@@ -1450,6 +1546,10 @@ tr.anulado {
 @media (max-width: 768px) {
     .sidebar {
         transform: translateX(-100%);
+        width: 80%;
+        max-width: 300px;
+        z-index: 100;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
     }
     
     .sidebar.show {
@@ -1459,10 +1559,37 @@ tr.anulado {
     .main-content {
         margin-left: 0;
         margin-bottom: var(--mobile-nav-height);
+        padding: 1rem;
     }
     
     .mobile-nav {
         display: flex;
+    }
+    
+    .dashboard-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .module-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .module-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    .table-container {
+        margin-top: 1rem;
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+    }
+    
+    /* El botón más debe destacar para resaltar su importancia */
+    .mobile-nav .menu-item[data-module="menu"] i {
+        color: var(--primary-color);
     }
 }
 
@@ -1501,6 +1628,134 @@ tr.anulado {
     .informes-filters {
         padding: 1rem;
     }
+    
+    .dashboard-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .card {
+        padding: 1rem;
+    }
+    
+    /* Optimizaciones para pedidos */
+    .data-table th:nth-child(2),
+    .data-table td:nth-child(2),
+    .data-table th:nth-child(3),
+    .data-table td:nth-child(3) {
+        display: none;
+    }
+    
+    /* Hacer tablas horizontalmente scrollables */
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Ajustar formularios y modales */
+    .modal-content {
+        max-height: 85vh;
+    }
+    
+    /* Botones más pequeños en vista móvil */
+    .btn {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.9rem;
+    }
+    
+    /* Ocultar elementos no esenciales */
+    .informes-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .sidebar {
+        width: 85%;
+    }
+    
+    /* Mejoras en UX táctil */
+    input, select, textarea, button {
+        font-size: 16px; /* Evita zoom en campos de formulario en iOS */
+    }
+    
+    .top-bar {
+        padding: 0 1rem;
+    }
+}
+
+/* Estilos para notificaciones de permisos */
+.permission-notification {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    background-color: white;
+    padding: 15px;
+    border-radius: var(--radius);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    animation: slideUp 0.3s ease;
+}
+
+.permission-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.permission-content p {
+    flex: 1;
+    margin: 0;
+    min-width: 200px;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Pantalla de instalación PWA */
+.pwa-install-prompt {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    background-color: var(--background);
+    padding: 15px;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    border-top: 1px solid var(--border-color);
+    z-index: 900;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    animation: slideUp 0.3s ease;
+}
+
+.pwa-install-prompt-content {
+    flex: 1;
+}
+
+.pwa-install-prompt h3 {
+    margin: 0 0 5px 0;
+    font-size: 1rem;
+}
+
+.pwa-install-prompt p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.pwa-install-actions {
+    display: flex;
+    gap: 10px;
 }
 
 /* Estilos para impresión */

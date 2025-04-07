@@ -156,9 +156,14 @@ function generarInforme() {
             <div class="informe-resumen">
                 <p><strong>Total de pedidos:</strong> ${pedidosFiltrados.length}</p>
                 <p><strong>Período:</strong> ${formatDate(fechaDesde)} - ${formatDate(fechaHasta)}</p>
-                <button class="btn btn-primary" onclick="imprimirInforme()">
-                    <i class="fas fa-print"></i> Imprimir Informe
-                </button>
+                <div class="informe-actions">
+                    <button class="btn btn-primary" onclick="imprimirInforme()">
+                        <i class="fas fa-print"></i> Imprimir Informe
+                    </button>
+                    <button class="btn btn-success" onclick="descargarInformeExcel()">
+                        <i class="fas fa-file-excel"></i> Descargar Excel
+                    </button>
+                </div>
             </div>
             <div class="informe-table-container">
                 <table class="informe-table">
@@ -338,5 +343,79 @@ function imprimirInforme() {
     `);
     
     printWindow.document.close();
+}
+
+// Función para descargar el informe en formato Excel
+function descargarInformeExcel() {
+    // Verificar que hay un informe generado
+    const informeTable = document.querySelector('.informe-table');
+    if (!informeTable) {
+        showToast('No hay informe para descargar', 'error');
+        return;
+    }
+    
+    try {
+        // Mostrar loading
+        const appLoader = document.getElementById('app-loader');
+        if (appLoader) appLoader.style.display = 'flex';
+        
+        // Obtener datos del informe
+        const rows = [];
+        
+        // Primero los encabezados
+        const headers = [];
+        informeTable.querySelectorAll('thead th').forEach(th => {
+            headers.push(th.textContent);
+        });
+        rows.push(headers);
+        
+        // Luego las filas de datos
+        informeTable.querySelectorAll('tbody tr').forEach(tr => {
+            const rowData = [];
+            tr.querySelectorAll('td').forEach((td, index) => {
+                // Para la columna de productos, quitar los <br> y usar comas
+                if (index === 5) { // índice de la columna Productos
+                    rowData.push(td.innerHTML.replace(/<br>/g, ', '));
+                } 
+                // Para la columna de estado, obtener solo el texto sin el badge
+                else if (index === 4) { // índice de la columna Estado
+                    rowData.push(td.textContent);
+                } 
+                else {
+                    rowData.push(td.textContent);
+                }
+            });
+            rows.push(rowData);
+        });
+        
+        // Crear una hoja de cálculo
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        
+        // Obtener período desde el resumen
+        const periodoText = document.querySelector('.informe-resumen p:nth-child(2)').textContent;
+        const periodo = periodoText.split(':')[1].trim();
+        
+        // Configurar nombre del archivo
+        const filename = `Informe_Pedidos_${periodo.replace(/\//g, '-')}.xlsx`;
+        
+        // Añadir la hoja al libro
+        XLSX.utils.book_append_sheet(wb, ws, 'Pedidos');
+        
+        // Descargar el archivo
+        XLSX.writeFile(wb, filename);
+        
+        // Ocultar loading y mostrar mensaje de éxito
+        if (appLoader) appLoader.style.display = 'none';
+        showToast('Informe descargado correctamente', 'success');
+    } catch (error) {
+        // Mostrar error
+        console.error('Error al generar el archivo Excel:', error);
+        showToast('Error al generar el archivo Excel', 'error');
+        
+        // Ocultar loading
+        const appLoader = document.getElementById('app-loader');
+        if (appLoader) appLoader.style.display = 'none';
+    }
 }
 

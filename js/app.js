@@ -27,7 +27,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Inicializar UI components
     initUI();
     
-    // Buscar usuario en localStorage
+    // Cargar datos de ejemplo para desarrollo primero
+    loadDummyData();
+    
+    // Después cargar usuario desde localStorage 
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
         try {
@@ -38,8 +41,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // Cargar datos de ejemplo para desarrollo
-    loadDummyData();
+    // Si estamos en el dashboard, asegurarse de que el gráfico se cargue correctamente
+    if (app.currentModule === 'dashboard') {
+        // Dar tiempo para que el canvas se renderice antes de crear el gráfico
+        setTimeout(() => {
+            updateDashboard();
+        }, 100);
+    }
     
     // Ocultar el cargador después de completar todas las inicializaciones
     if (appLoader) {
@@ -81,15 +89,16 @@ function initUI() {
     document.querySelectorAll('.menu-item').forEach(item => {
         item.addEventListener('click', () => {
             const module = item.getAttribute('data-module');
-            if (module) {
-                changeModule(module);
-            }
+            if (!module) return;
             
             // Si es el menú "más" en móvil, mostrar menú adicional
             if (module === 'menu') {
                 toggleMobileMenu();
                 return;
             }
+            
+            // Para otros módulos, cambiar a ese módulo
+            changeModule(module);
         });
     });
     
@@ -183,7 +192,17 @@ function loadModuleContent(moduleName) {
         const dashboardModule = document.getElementById('dashboard-module');
         if (dashboardModule) {
             dashboardModule.classList.add('active');
+            
+            // Ejecutar updateDashboard de inmediato y luego de nuevo después de un breve retraso
+            // para asegurar que el canvas esté completamente renderizado
             updateDashboard();
+            
+            // Segunda ejecución después de 50ms para asegurar que el DOM esté completamente actualizado
+            setTimeout(() => {
+                if (app.currentModule === 'dashboard') {
+                    updateDashboard();
+                }
+            }, 50);
         }
         return;
     }
@@ -241,24 +260,41 @@ function updateModuleData(moduleName) {
 
 // Actualizar dashboard
 function updateDashboard() {
+    // Filtrar pedidos según el rol del usuario
+    let filteredPedidos = app.pedidos;
+    
+    if (app.currentUser.rol === 'vendedor') {
+        // Vendedor solo ve sus propios pedidos
+        filteredPedidos = filteredPedidos.filter(p => p.creador.id === app.currentUser.id);
+    } else if (app.currentUser.rol === 'conductor') {
+        // Conductor solo ve pedidos asignados a él
+        filteredPedidos = filteredPedidos.filter(p => p.conductor && p.conductor.id === app.currentUser.id);
+    } else if (app.currentUser.rol === 'bodega') {
+        // Bodega ve pedidos en ciertos estados
+        filteredPedidos = filteredPedidos.filter(p => ['buscando-conductor', 'conductor-asignado', 'en-proceso', 'devuelto'].includes(p.estado));
+    } else if (app.currentUser.rol === 'tesoreria') {
+        // Tesorería ve pedidos en ciertos estados
+        filteredPedidos = filteredPedidos.filter(p => ['entregado-pendiente', 'finalizado'].includes(p.estado));
+    }
+    
     // Contadores
-    const pedidosActivos = app.pedidos.filter(p => 
+    const pedidosActivos = filteredPedidos.filter(p => 
         p.estado !== 'finalizado' && p.estado !== 'anulado').length;
     
-    const pedidosEntrega = app.pedidos.filter(p => 
+    const pedidosEntrega = filteredPedidos.filter(p => 
         p.estado === 'en-proceso').length;
     
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    const finalizadosHoy = app.pedidos.filter(p => {
+    const finalizadosHoy = filteredPedidos.filter(p => {
         if (p.estado !== 'finalizado') return false;
         const pedidoDate = new Date(p.fechaFinalizacion);
         pedidoDate.setHours(0, 0, 0, 0);
         return pedidoDate.getTime() === today.getTime();
     }).length;
     
-    const devoluciones = app.pedidos.filter(p => 
+    const devoluciones = filteredPedidos.filter(p => 
         p.estado === 'devuelto').length;
     
     // Actualizar valores en el dashboard
@@ -267,49 +303,123 @@ function updateDashboard() {
     document.querySelectorAll('.card-value')[2].textContent = finalizadosHoy;
     document.querySelectorAll('.card-value')[3].textContent = devoluciones;
     
-    // Actualizar tabla de pedidos recientes
-    const recentOrdersContainer = document.getElementById('recent-orders');
-    if (recentOrdersContainer) {
-        // Ordenar pedidos por fecha de creación (más recientes primero)
-        const recentPedidos = [...app.pedidos]
-            .sort((a, b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion))
-            .slice(0, 5); // Tomar los 5 más recientes
-        
-        if (recentPedidos.length === 0) {
-            recentOrdersContainer.innerHTML = `
-                <tr class="empty-state">
-                    <td colspan="5">
-                        <div class="empty-message">
-                            <i class="fas fa-clipboard-list"></i>
-                            <p>No hay pedidos recientes</p>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        } else {
-            recentOrdersContainer.innerHTML = recentPedidos.map(pedido => `
-                <tr>
-                    <td>${pedido.numeroPedido}</td>
-                    <td>${pedido.cliente.nombre} ${pedido.cliente.apellido}</td>
-                    <td><span class="status-badge status-${pedido.estado}">${getEstadoLabel(pedido.estado)}</span></td>
-                    <td>${formatDate(pedido.fechaCreacion)}</td>
-                    <td>
-                        <button class="btn btn-small" data-pedido-id="${pedido.id}" onclick="openPedidoDetail(${pedido.id})">
-                            <i class="fas fa-eye"></i> Ver
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
+    // Generar datos para el gráfico de pedidos por día
+    const chartCanvas = document.getElementById('orders-chart');
+    if (chartCanvas) {
+        try {
+            // Mostrar loader mientras se carga el gráfico
+            const chartLoader = document.getElementById('chart-loader');
+            if (chartLoader) {
+                chartLoader.style.display = 'flex';
+            }
+            
+            // Verificar que el canvas esté visible y tenga dimensiones válidas
+            if (chartCanvas.offsetWidth === 0 || chartCanvas.offsetHeight === 0) {
+                // Si el canvas no tiene dimensiones, puede que no esté visible aún
+                // Intentamos de nuevo en el próximo frame de renderizado
+                requestAnimationFrame(() => updateDashboard());
+                return;
+            }
+            
+            // Usamos los pedidos ya filtrados según el rol del usuario
+            
+            // Obtener los últimos 7 días
+            const last7Days = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                d.setHours(0, 0, 0, 0);
+                last7Days.push(d);
+            }
+            
+            // Calcular pedidos por día de manera más eficiente
+            const pedidosPorDia = new Array(7).fill(0);
+            
+            // Mapear fechas a índices para un conteo más rápido
+            const dateMap = {};
+            last7Days.forEach((day, index) => {
+                dateMap[day.getTime()] = index;
+            });
+            
+            // Contar pedidos para cada día
+            filteredPedidos.forEach(pedido => {
+                const pedidoDate = new Date(pedido.fechaCreacion);
+                pedidoDate.setHours(0, 0, 0, 0);
+                const dayIndex = dateMap[pedidoDate.getTime()];
+                if (dayIndex !== undefined) {
+                    pedidosPorDia[dayIndex]++;
+                }
+            });
+            
+            // Formatear etiquetas de fechas
+            const labels = last7Days.map(d => d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }));
+            
+            // Destruir gráfico anterior si existe
+            if (window.ordersChart) {
+                window.ordersChart.destroy();
+            }
+            
+            // Ocultar loader una vez que el gráfico está listo para ser creado
+            const chartLoader = document.getElementById('chart-loader');
+            if (chartLoader) {
+                chartLoader.style.display = 'none';
+            }
+            
+            // Crear el gráfico con opciones optimizadas
+            window.ordersChart = new Chart(chartCanvas, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Pedidos',
+                        data: pedidosPorDia,
+                        backgroundColor: 'rgba(1, 58, 251, 0.3)',
+                        borderColor: 'rgba(1, 58, 251, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 250 // Reducir duración de animación para carga más rápida
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error al crear el gráfico:', error);
         }
     }
 }
 
 // Abrir modal
 function openModal(modalId) {
+    // Asegurarse de que todos los demás modales estén cerrados
+    if (modalId !== 'confirmation-modal') {
+        document.querySelectorAll('.modal').forEach(modal => {
+            if (modal.id !== modalId && modal.id !== 'confirmation-modal') {
+                modal.classList.remove('show');
+            }
+        });
+    }
+    
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.classList.add('show');
         document.body.style.overflow = 'hidden';
+        
+        // Si es el modal de confirmación, darle un z-index más alto
+        if (modalId === 'confirmation-modal') {
+            modal.style.zIndex = '1100';
+        }
     }
 }
 
@@ -318,7 +428,17 @@ function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.classList.remove('show');
-        document.body.style.overflow = '';
+        
+        // Resetear z-index si es el modal de confirmación
+        if (modalId === 'confirmation-modal') {
+            modal.style.zIndex = '';
+        }
+        
+        // Solo restaurar el overflow si no hay otros modales visibles
+        const modalVisible = document.querySelector('.modal.show');
+        if (!modalVisible) {
+            document.body.style.overflow = '';
+        }
     }
 }
 
@@ -326,6 +446,11 @@ function closeModal(modalId) {
 function closeAllModals() {
     document.querySelectorAll('.modal').forEach(modal => {
         modal.classList.remove('show');
+        
+        // Resetear z-index para todos los modales
+        if (modal.id === 'confirmation-modal') {
+            modal.style.zIndex = '';
+        }
     });
     document.body.style.overflow = '';
 }
@@ -431,7 +556,7 @@ function validarPermiso(accion, estadoPedido = null) {
             return false;
         
         case 'anular_pedido':
-            return false; // Solo el maestro puede anular
+            return app.currentUser.rol === 'maestro'; // Solo el maestro puede anular
         
         case 'descargar_informes':
             return ['vendedor', 'bodega'].includes(app.currentUser.rol);
@@ -1043,20 +1168,31 @@ function toggleMobileMenu() {
     const sidebar = document.getElementById('sidebar');
     
     if (sidebar) {
-        if (sidebar.style.transform === 'translateX(0px)') {
+        // Comprobar si el sidebar está visible o no
+        const isVisible = window.getComputedStyle(sidebar).transform !== 'matrix(1, 0, 0, 1, -250, 0)' && 
+                          sidebar.style.transform !== 'translateX(-100%)';
+        
+        if (isVisible) {
             // Ocultar sidebar
             sidebar.style.transform = 'translateX(-100%)';
+            console.log('Ocultando menú lateral en móvil');
         } else {
             // Mostrar sidebar
             sidebar.style.transform = 'translateX(0)';
+            console.log('Mostrando menú lateral en móvil');
             
             // Añadir evento para ocultar al hacer clic fuera
-            document.body.addEventListener('click', function hideSidebar(e) {
-                if (!sidebar.contains(e.target)) {
-                    sidebar.style.transform = 'translateX(-100%)';
-                    document.body.removeEventListener('click', hideSidebar);
-                }
-            }, { once: true });
+            setTimeout(() => {
+                document.addEventListener('click', function hideSidebar(e) {
+                    if (!sidebar.contains(e.target) && e.target.getAttribute('data-module') !== 'menu') {
+                        sidebar.style.transform = 'translateX(-100%)';
+                        document.removeEventListener('click', hideSidebar);
+                        console.log('Menú lateral cerrado por clic fuera');
+                    }
+                });
+            }, 100);
         }
+    } else {
+        console.error('No se encontró el menú lateral');
     }
 }

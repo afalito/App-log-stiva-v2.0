@@ -845,6 +845,18 @@ function asignarConductor(pedidoId) {
         return;
     }
     
+    // Verificar permisos - solo bodega y maestro pueden asignar
+    if (!validarPermiso('asignar_conductor', pedido.estado)) {
+        showToast('No tienes permisos para asignar conductores', 'error');
+        return;
+    }
+    
+    // Verificar estado - solo se puede asignar si está en "buscando conductor"
+    if (pedido.estado !== 'buscando-conductor') {
+        showToast('Solo se pueden asignar conductores a pedidos en estado "Buscando Conductor"', 'error');
+        return;
+    }
+
     // Buscar conductores disponibles
     const conductores = app.usuarios.filter(u => u.rol === 'conductor' && u.activo);
     
@@ -1158,7 +1170,7 @@ function anularPedido(pedidoId) {
     }
     
     // Verificar permisos - solo usuario maestro puede anular
-    if (app.currentUser.rol !== 'maestro') {
+    if (!validarPermiso('anular_pedido')) {
         showToast('No tienes permisos para anular pedidos', 'error');
         return;
     }

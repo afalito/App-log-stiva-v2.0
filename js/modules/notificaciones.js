@@ -10,6 +10,16 @@ function initNotificacionesModule() {
             changeModule('notificaciones');
         });
     }
+    
+    // Verificar soporte para notificaciones web
+    if ('Notification' in window && typeof sendNotification === 'function') {
+        console.log('Sistema de notificaciones web disponible');
+        
+        // Intentar obtener permiso para notificaciones si no se ha decidido
+        if (Notification.permission === 'default') {
+            requestNotificationPermission();
+        }
+    }
 }
 
 // Configuración de eventos para el módulo de notificaciones
