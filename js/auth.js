@@ -17,10 +17,69 @@ function initAuth() {
             showToast('Por favor contacte a su administrador para restablecer su contraseña', 'info', 5000);
         });
     }
+    
+    // Comprobación de sesión existente
+    checkExistingSession();
+}
+
+// Verificar si hay una sesión existente
+async function checkExistingSession() {
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) {
+        try {
+            const userData = JSON.parse(savedUser);
+            // Verificar que el usuario sigue siendo válido en la base de datos
+            await verifyUserInDatabase(userData);
+        } catch (error) {
+            console.error('Error al cargar la sesión del usuario:', error);
+            // Si hay error, limpiar la sesión
+            localStorage.removeItem('currentUser');
+        }
+    }
+}
+
+// Verificar que el usuario existe en la base de datos
+async function verifyUserInDatabase(userData) {
+    try {
+        const supabase = getSupabaseClient();
+        
+        // Consultar usuario por username
+        const { data, error } = await supabase
+            .from('usuarios')
+            .select('*')
+            .eq('username', userData.username)
+            .eq('activo', true)
+            .single();
+        
+        if (error) throw error;
+        
+        if (data) {
+            // Usuario encontrado, actualizar datos locales y continuar
+            app.currentUser = {
+                id: data.id,
+                nombre: data.nombre,
+                apellido: data.apellido,
+                username: data.username,
+                rol: data.rol
+            };
+            
+            // Guardar en localStorage
+            localStorage.setItem('currentUser', JSON.stringify(app.currentUser));
+            
+            // Continuar con inicio de sesión
+            loginSuccess();
+        } else {
+            // Usuario no encontrado o inactivo
+            throw new Error('Usuario no encontrado o inactivo');
+        }
+    } catch (error) {
+        console.error('Error al verificar usuario en BD:', error);
+        throw error;
+    }
 }
 
 // Función para iniciar sesión
-function loginUser() {
+async function loginUser() {
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
     
@@ -49,35 +108,31 @@ function loginUser() {
         appLoader.style.display = 'flex';
     }
     
-    // Simulamos una breve demora para dar sensación de procesamiento
-    setTimeout(() => {
-        // Aseguramos que los datos de ejemplo estén cargados
-        if (app.usuarios.length === 0) {
-            console.log("Cargando datos de ejemplo antes de login...");
-            loadDummyData();
+    try {
+        const supabase = getSupabaseClient();
+        
+        // Consultar usuario en la base de datos
+        const { data, error } = await supabase
+            .from('usuarios')
+            .select('*')
+            .eq('username', username)
+            .single();
+        
+        if (error && error.code !== 'PGRST116') {
+            // Error de supabase distinto a "no se encontraron resultados"
+            throw error;
         }
         
-        // Verificación de los usuarios para depuración
-        console.log("Intentando login con:", username, "Usuarios disponibles:", app.usuarios.length);
-        console.log("Lista de usuarios disponibles:");
-        app.usuarios.forEach(u => {
-            console.log(`- ${u.username} (${u.rol}): Activo=${u.activo}, Password coincide=${u.password === password}`);
-        });
-        
-        // Buscar usuario en la "base de datos"
-        const user = app.usuarios.find(u => 
-            u.username === username && u.password === password && u.activo
-        );
-        
-        if (user) {
-            console.log("Usuario encontrado:", user.nombre, user.rol);
+        if (data && data.password === password && data.activo) {
+            console.log("Usuario autenticado con éxito:", data.nombre, data.rol);
+            
             // Guardar usuario en la aplicación
             app.currentUser = {
-                id: user.id,
-                nombre: user.nombre,
-                apellido: user.apellido,
-                username: user.username,
-                rol: user.rol
+                id: data.id,
+                nombre: data.nombre,
+                apellido: data.apellido,
+                username: data.username,
+                rol: data.rol
             };
             
             // Guardar en localStorage
@@ -86,23 +141,72 @@ function loginUser() {
             // Continuar con el inicio de sesión
             loginSuccess();
         } else {
-            console.log("Login fallido para usuario:", username);
-            // Ocultar cargador
+            // Error de autenticación
             if (appLoader) {
                 appLoader.style.display = 'none';
             }
-            // Verificar si el usuario existe pero la contraseña es incorrecta
-            const userExists = app.usuarios.some(u => u.username === username);
-            if (userExists) {
-                console.log("El usuario existe pero la contraseña es incorrecta");
-                document.getElementById('password-error').textContent = 'Contraseña incorrecta';
+            
+            if (data) {
+                // Usuario existe pero contraseña incorrecta o inactivo
+                if (data.password !== password) {
+                    document.getElementById('password-error').textContent = 'Contraseña incorrecta';
+                } else if (!data.activo) {
+                    document.getElementById('username-error').textContent = 'Usuario inactivo';
+                    document.getElementById('password-error').textContent = 'Contacte a su administrador';
+                }
             } else {
-                console.log("Usuario no encontrado entre los", app.usuarios.length, "usuarios disponibles");
+                // Usuario no existe
                 document.getElementById('username-error').textContent = 'Usuario no encontrado';
                 document.getElementById('password-error').textContent = 'Verifica tus credenciales';
             }
         }
-    }, 500); // Medio segundo de demora para mejorar la experiencia de usuario
+    } catch (error) {
+        console.error("Error durante el login:", error);
+        
+        if (appLoader) {
+            appLoader.style.display = 'none';
+        }
+        
+        // En caso de fallar la conexión con Supabase, intentar el modo de desarrollo
+        fallbackToDevMode(username, password);
+    }
+}
+
+// Función para usar modo desarrollo en caso de fallo de conexión
+function fallbackToDevMode(username, password) {
+    console.warn("Utilizando modo de desarrollo debido a problemas de conexión con Supabase");
+    
+    // Cargar datos de ejemplo
+    if (app.usuarios.length === 0) {
+        loadDummyData();
+    }
+    
+    // Buscar usuario en los datos de ejemplo
+    const user = app.usuarios.find(u => 
+        u.username === username && u.password === password && u.activo
+    );
+    
+    if (user) {
+        console.log("Usuario encontrado en modo desarrollo:", user.nombre, user.rol);
+        // Guardar usuario en la aplicación
+        app.currentUser = {
+            id: user.id,
+            nombre: user.nombre,
+            apellido: user.apellido,
+            username: user.username,
+            rol: user.rol
+        };
+        
+        // Guardar en localStorage
+        localStorage.setItem('currentUser', JSON.stringify(app.currentUser));
+        
+        // Continuar con el inicio de sesión
+        loginSuccess();
+    } else {
+        // Mostrar error de fallback
+        document.getElementById('username-error').textContent = 'Error al conectar con el servidor';
+        document.getElementById('password-error').textContent = 'Intente de nuevo más tarde';
+    }
 }
 
 // Función ejecutada tras un inicio de sesión exitoso
@@ -132,13 +236,60 @@ function loginSuccess() {
     // Mostrar toast de bienvenida
     showToast(`Bienvenido, ${app.currentUser.nombre}!`, 'success');
     
-    // Actualizar contador de notificaciones
-    actualizarContadorNotificaciones();
+    // Cargar datos desde Supabase
+    loadInitialData();
     
     // Ocultar el cargador
     const appLoader = document.getElementById('app-loader');
     if (appLoader) {
         appLoader.style.display = 'none';
+    }
+}
+
+// Cargar datos iniciales desde Supabase
+async function loadInitialData() {
+    try {
+        const supabase = getSupabaseClient();
+        
+        // Cargar productos
+        const { data: productos, error: productosError } = await supabase
+            .from('productos')
+            .select('*')
+            .order('id', { ascending: true });
+        
+        if (productosError) throw productosError;
+        app.productos = productos || [];
+        
+        // Cargar notificaciones del usuario actual
+        if (app.currentUser) {
+            const { data: notificaciones, error: notificacionesError } = await supabase
+                .from('notificaciones')
+                .select('*')
+                .eq('usuario_id', app.currentUser.id)
+                .order('fecha', { ascending: false });
+            
+            if (notificacionesError) throw notificacionesError;
+            
+            // Transformar a formato compatible con la aplicación
+            app.notificaciones = (notificaciones || []).map(n => ({
+                id: n.id,
+                usuarioId: n.usuario_id,
+                texto: n.texto,
+                referencia: n.referencia,
+                referenciaId: n.referencia_id,
+                tipo: n.tipo,
+                leida: n.leida,
+                fecha: n.fecha
+            }));
+            
+            // Actualizar contador de notificaciones
+            actualizarContadorNotificaciones();
+        }
+        
+        console.log("Datos iniciales cargados con éxito");
+    } catch (error) {
+        console.error("Error al cargar datos iniciales:", error);
+        showToast('Algunos datos no pudieron ser cargados', 'warning');
     }
 }
 
@@ -156,19 +307,26 @@ function setupRolePermissions() {
 }
 
 // Función para cerrar sesión
-function logout() {
+async function logout() {
     // Mostrar cargador
     const appLoader = document.getElementById('app-loader');
     if (appLoader) {
         appLoader.style.display = 'flex';
     }
     
-    setTimeout(() => {
+    try {
+        // En el futuro podríamos llamar a Supabase para invalidar tokens o sesiones
+        
         // Eliminar usuario del localStorage
         localStorage.removeItem('currentUser');
         
         // Limpiar usuario actual
         app.currentUser = null;
+        
+        // Limpiar datos de la aplicación
+        app.productos = [];
+        app.pedidos = [];
+        app.notificaciones = [];
         
         // Ocultar la aplicación
         document.getElementById('app-container').style.display = 'none';
@@ -182,13 +340,15 @@ function logout() {
         document.getElementById('username-error').textContent = '';
         document.getElementById('password-error').textContent = '';
         
+        console.log('Sesión cerrada correctamente');
+    } catch (error) {
+        console.error('Error al cerrar sesión:', error);
+    } finally {
         // Ocultar cargador
         if (appLoader) {
             appLoader.style.display = 'none';
         }
-        
-        console.log('Sesión cerrada correctamente');
-    }, 500); // Pequeña demora para mostrar el cargador
+    }
 }
 
 // Obtener nombre legible del rol

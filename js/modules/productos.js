@@ -26,6 +26,51 @@ function setupProductosEvents() {
     setupProductoModalEvents();
 }
 
+// Cargar productos desde Supabase
+async function loadProductos() {
+    try {
+        const supabase = getSupabaseClient();
+        
+        // Mostrar cargador
+        const appLoader = document.getElementById('app-loader');
+        if (appLoader) {
+            appLoader.style.display = 'flex';
+        }
+        
+        // Consultar productos
+        const { data, error } = await supabase
+            .from('productos')
+            .select('*')
+            .order('id', { ascending: true });
+        
+        if (error) throw error;
+        
+        // Actualizar productos en la aplicación
+        app.productos = data || [];
+        
+        // Actualizar tabla
+        updateProductosTable();
+        
+        // Ocultar cargador
+        if (appLoader) {
+            appLoader.style.display = 'none';
+        }
+        
+        return data;
+    } catch (error) {
+        console.error('Error al cargar productos:', error);
+        showToast('Error al cargar los productos', 'error');
+        
+        // Ocultar cargador en caso de error
+        const appLoader = document.getElementById('app-loader');
+        if (appLoader) {
+            appLoader.style.display = 'none';
+        }
+        
+        return [];
+    }
+}
+
 // Actualizar tabla de productos
 function updateProductosTable() {
     const productosList = document.getElementById('productos-list');
@@ -131,7 +176,7 @@ function setupProductoModalEvents() {
 }
 
 // Guardar producto
-function saveProducto() {
+async function saveProducto() {
     // Obtener datos del formulario
     const nombre = document.getElementById('producto-nombre').value;
     const descripcion = document.getElementById('producto-descripcion').value;
@@ -148,39 +193,75 @@ function saveProducto() {
         return;
     }
     
-    // Verificar si estamos editando o creando
-    const productoModalTitle = document.getElementById('producto-modal-title');
-    const productoId = productoModalTitle.getAttribute('data-producto-id');
-    
-    if (productoId) {
-        // Editar producto existente
-        const producto = app.productos.find(p => p.id == productoId);
-        
-        if (producto) {
-            producto.nombre = nombre;
-            producto.descripcion = descripcion;
-            producto.precio = precio;
-            
-            showToast('Producto actualizado correctamente', 'success');
-        }
-    } else {
-        // Crear nuevo producto
-        const nuevoProducto = {
-            id: app.productos.length > 0 ? Math.max(...app.productos.map(p => p.id)) + 1 : 1,
-            nombre: nombre,
-            descripcion: descripcion,
-            precio: precio
-        };
-        
-        app.productos.push(nuevoProducto);
-        showToast('Producto creado correctamente', 'success');
+    // Mostrar cargador
+    const appLoader = document.getElementById('app-loader');
+    if (appLoader) {
+        appLoader.style.display = 'flex';
     }
     
-    // Cerrar modal
-    closeModal('producto-modal');
-    
-    // Actualizar tabla
-    updateProductosTable();
+    try {
+        const supabase = getSupabaseClient();
+        
+        // Verificar si estamos editando o creando
+        const productoModalTitle = document.getElementById('producto-modal-title');
+        const productoId = productoModalTitle.getAttribute('data-producto-id');
+        
+        if (productoId) {
+            // Editar producto existente
+            const { data, error } = await supabase
+                .from('productos')
+                .update({
+                    nombre: nombre,
+                    descripcion: descripcion,
+                    precio: precio
+                })
+                .eq('id', productoId)
+                .select();
+            
+            if (error) throw error;
+            
+            // Actualizar producto en la aplicación
+            const index = app.productos.findIndex(p => p.id == productoId);
+            if (index !== -1 && data && data.length > 0) {
+                app.productos[index] = data[0];
+            }
+            
+            showToast('Producto actualizado correctamente', 'success');
+        } else {
+            // Crear nuevo producto
+            const { data, error } = await supabase
+                .from('productos')
+                .insert({
+                    nombre: nombre,
+                    descripcion: descripcion,
+                    precio: precio
+                })
+                .select();
+            
+            if (error) throw error;
+            
+            // Añadir nuevo producto a la aplicación
+            if (data && data.length > 0) {
+                app.productos.push(data[0]);
+            }
+            
+            showToast('Producto creado correctamente', 'success');
+        }
+        
+        // Cerrar modal
+        closeModal('producto-modal');
+        
+        // Actualizar tabla
+        updateProductosTable();
+    } catch (error) {
+        console.error('Error al guardar producto:', error);
+        showToast('Error al guardar el producto', 'error');
+    } finally {
+        // Ocultar cargador
+        if (appLoader) {
+            appLoader.style.display = 'none';
+        }
+    }
 }
 
 // Editar producto
@@ -189,7 +270,7 @@ function editProducto(productoId) {
 }
 
 // Eliminar producto
-function deleteProducto(productoId) {
+async function deleteProducto(productoId) {
     // Buscar producto
     const producto = app.productos.find(p => p.id === productoId);
     
@@ -215,22 +296,41 @@ function deleteProducto(productoId) {
     const newConfirmButton = document.getElementById('confirm-action-btn');
     
     // Añadir evento
-    newConfirmButton.addEventListener('click', () => {
-        // Verificar si el producto está siendo usado en algún pedido
-        const pedidosConProducto = app.pedidos.filter(pedido => 
-            pedido.productos.some(p => p.id === productoId)
-        );
-        
-        if (pedidosConProducto.length > 0) {
-            showToast(`No se puede eliminar el producto porque está siendo usado en ${pedidosConProducto.length} pedido(s)`, 'error');
-            closeModal('confirmation-modal');
-            return;
+    newConfirmButton.addEventListener('click', async () => {
+        // Mostrar cargador
+        const appLoader = document.getElementById('app-loader');
+        if (appLoader) {
+            appLoader.style.display = 'flex';
         }
         
-        // Eliminar producto
-        const index = app.productos.findIndex(p => p.id === productoId);
-        if (index !== -1) {
-            app.productos.splice(index, 1);
+        try {
+            // Verificar si el producto está siendo usado en algún pedido
+            // En un entorno real, esto se haría con una consulta a Supabase
+            const pedidosConProducto = app.pedidos.filter(pedido => 
+                pedido.productos.some(p => p.id === productoId)
+            );
+            
+            if (pedidosConProducto.length > 0) {
+                showToast(`No se puede eliminar el producto porque está siendo usado en ${pedidosConProducto.length} pedido(s)`, 'error');
+                closeModal('confirmation-modal');
+                return;
+            }
+            
+            const supabase = getSupabaseClient();
+            
+            // Eliminar producto en la base de datos
+            const { error } = await supabase
+                .from('productos')
+                .delete()
+                .eq('id', productoId);
+            
+            if (error) throw error;
+            
+            // Eliminar producto de la aplicación
+            const index = app.productos.findIndex(p => p.id === productoId);
+            if (index !== -1) {
+                app.productos.splice(index, 1);
+            }
             
             // Cerrar modal de confirmación
             closeModal('confirmation-modal');
@@ -240,9 +340,22 @@ function deleteProducto(productoId) {
             
             // Mostrar notificación de éxito
             showToast('Producto eliminado correctamente', 'success');
+        } catch (error) {
+            console.error('Error al eliminar producto:', error);
+            showToast('Error al eliminar el producto', 'error');
+        } finally {
+            // Ocultar cargador
+            if (appLoader) {
+                appLoader.style.display = 'none';
+            }
         }
     });
     
     // Abrir modal de confirmación
     openModal('confirmation-modal');
 }
+
+// Exportar función para que sea accesible desde otros archivos
+window.loadProductos = loadProductos;
+window.editProducto = editProducto;
+window.deleteProducto = deleteProducto;
