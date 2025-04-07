@@ -27,25 +27,75 @@ Fluxon Logistics es una aplicación de gestión logística para seguimiento de p
    - Implementación de Row Level Security (RLS) (`enable_rls.sql`)
    - Configuración del sistema de autenticación (`create_auth_users.sql`)
 
-### Pendientes y próximos pasos
+### Plan detallado para completar la integración con Supabase
 
-1. **Testing de integración con Supabase**
+1. **Fase 1: Integración básica con Supabase - por módulos**
+   
+   a. **Módulo de Pedidos (js/modules/pedidos.js)**
+   - Migrar `savePedido()` para crear/actualizar pedidos en Supabase
+   - Conectar `addComment()` con tabla `comentarios_pedido` en Supabase
+   - Implementar `asignarConductor()` con persistencia en Supabase
+   - Actualizar `cambiarEstadoPedido()` para sincronizar con Supabase
+   - Integrar `generarNotificacionesCambioEstado()` con el sistema de notificaciones Supabase
+   
+   b. **Módulo de Usuarios (js/modules/usuarios.js)**
+   - Migrar `saveUsuario()` para crear/actualizar usuarios en Supabase Auth y tabla usuarios
+   - Conectar `toggleUsuarioStatus()` para activar/desactivar usuarios en Supabase
+   - Eliminar referencias a localStorage para persistencia de usuarios
+   
+   c. **Módulo de Informes (js/modules/informes.js)**
+   - Actualizar `generarInforme()` para consultar datos desde Supabase
+   - Migrar `imprimirInforme()` y `descargarInformeExcel()` para usar datos de Supabase
+   - Considerar la creación de una tabla para almacenar informes generados
+   
+   d. **App Principal (js/app.js)**
+   - Reemplazar `loadDummyData()` con carga desde Supabase
+   - Implementar `generarNumeroPedido()` usando secuencias de Supabase
+   - Actualizar `updateDashboard()` para obtener estadísticas desde Supabase
+   - Eliminar referencias redundantes a localStorage
+
+2. **Fase 2: Mejoras de arquitectura**
+   - ✅ Crear un archivo `db-operations.js` con funciones CRUD base para todas las entidades
+   - Implementar manejo de errores y reintentos para operaciones de red
+   - Desarrollar sistema de caché para funcionamiento offline
+   - Optimizar consultas a Supabase para reducir uso de recursos
+
+3. **Fase 3: Testing y validación**
    - Probar inicio de sesión con usuarios de Supabase
    - Verificar CRUD en todas las tablas
    - Comprobar que las políticas RLS funcionan correctamente
+   - Probar el funcionamiento offline con caché local
+   - Realizar pruebas de carga y rendimiento con datos reales
 
-2. **Actualización del despliegue**
+4. **Fase 4: Implementación de sincronización offline y manejo de errores**
+   - Crear mecanismo de cola para operaciones en estado offline
+   - Implementar sistema de resolución de conflictos
+   - Desarrollar indicadores visuales de conectividad
+   - Añadir reintentos automáticos para operaciones fallidas
+
+5. **Fase 5: Mejoras adicionales para producción**
+   - Implementar sistema de suscripciones en tiempo real con Supabase Realtime
+   - Añadir compresión de datos para reducir uso de ancho de banda
+   - Optimizar carga inicial con datos parciales y carga progresiva
+   - Implementar sistema de logging para depuración en producción
+
+6. **Fase 6: Despliegue y monitoreo**
    - Actualizar la versión desplegada en Vercel para usar Supabase
-   - Configurar variables de entorno en Vercel si es necesario
+   - Configurar variables de entorno en Vercel para las claves de Supabase
+   - Implementar monitoreo de errores en producción
+   - Configurar alertas para problemas críticos
 
-3. **Migración de datos**
-   - Implementar funcionalidad para cargar datos desde Supabase en lugar de localStorage
-   - Asegurar sincronización entre cliente y servidor
+7. **Fase 7: Seguridad y compliance**
+   - Revisar y reforzar políticas RLS para todos los casos de uso
+   - Implementar sistema de auditoría para acciones críticas
+   - Asegurar cumplimiento GDPR/protección de datos personales
+   - Realizar pruebas de penetración y seguridad
 
-4. **Mejoras de UX/UI**
-   - Indicadores de estado de conexión
-   - Manejo de errores de red
-   - Implementación de caché para funcionamiento offline
+8. **Fase 8: Migración de datos y lanzamiento**
+   - Desarrollar scripts de migración para datos históricos
+   - Establecer plan de rollback en caso de problemas
+   - Implementar estrategia de lanzamiento gradual por usuarios
+   - Preparar documentación y guías para usuarios finales
 
 ## Roles de usuario y funcionalidades
 
@@ -89,6 +139,9 @@ Consultar el [README.md](./README.md) para información detallada sobre:
 - Implementación de persistencia de preferencias de notificaciones
 - Modificación de la lógica para guardar y leer notificaciones desde Supabase
 - Mejora de UX en la interfaz de notificaciones
+- Creación del archivo db-operations.js con funciones CRUD para todas las entidades
+- Definición del plan detallado para completar la migración a Supabase
+- Creación del script para la tabla comentarios_pedido
 
 ## Notas técnicas importantes
 
@@ -105,13 +158,14 @@ Consultar el [README.md](./README.md) para información detallada sobre:
 - Método de respaldo: Autenticación directa contra tabla usuarios
 
 ### Estructura de la base de datos
-- `usuarios`: Almacena información de los usuarios
-- `productos`: Catálogo de productos
-- `pedidos`: Información principal de pedidos
-- `detalles_pedido`: Productos en cada pedido
-- `historial_pedidos`: Registro de cambios de estado
-- `notificaciones`: Sistema de notificaciones a usuarios
-- `preferencias_usuario`: Almacena configuraciones específicas de cada usuario (tema, preferencias de notificaciones, etc.)
+- `usuarios`: Almacena información de los usuarios (conectado parcialmente)
+- `productos`: Catálogo de productos (pendiente de conectar)
+- `pedidos`: Información principal de pedidos (pendiente de conectar)
+- `detalles_pedido`: Productos en cada pedido (pendiente de conectar)
+- `historial_pedidos`: Registro de cambios de estado (pendiente de conectar)
+- `notificaciones`: Sistema de notificaciones a usuarios (conectado)
+- `preferencias_usuario`: Almacena configuraciones específicas de cada usuario (conectado)
+- `comentarios_pedido`: Comentarios asociados a pedidos (pendiente de crear y conectar)
 
 ### Row Level Security (RLS)
 - Todas las tablas tienen RLS habilitado
